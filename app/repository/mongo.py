@@ -1,7 +1,9 @@
 from typing import Optional, Dict, Any, List
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
-from app.core.settings import settings
+
 from app.core.logger import get_logger
+from app.core.settings import settings
 
 logger = get_logger(name=__name__)
 
