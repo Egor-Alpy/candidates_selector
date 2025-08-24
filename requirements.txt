@@ -3,5 +3,5 @@ pydantic~=2.11.7
 fastapi~=0.116.1
 motor~=3.7.1
 uvicorn~=0.35.0
-elasticsearch~=9.1.0
+elasticsearch~=8.11.1
 aiohttp==3.12.15
