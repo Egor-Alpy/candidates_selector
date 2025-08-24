@@ -116,7 +116,3 @@ class MongoRepository:
         except Exception as e:
             logger.error(f"❌ Ошибка поиска в {collection_name}: {e}")
             return []
-
-
-# Создание глобального экземпляра
-mongo_repository = MongoRepository()

@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Общие настройки
-    PROJECT_NAME: str = "Candidates Selector Service"
+    PROJECT_NAME: str = "Candidates Selector"
     PROJECT_DESCRIPTION: str = "Сервис для отбора кандидатов мэтчинга"
     PROJECT_VERSION: str = "1.0.0"
 
@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     ES_HOST: str = "elasticsearch"
     ES_PORT: int = 9200
     ES_INDEX: str = "products_v1"
+    ES_MAX_RETRIES: int = 3
 
     # Настройка подключения к MongoDB
     # MONGO_DB_HOST: str = "alpy"

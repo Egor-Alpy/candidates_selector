@@ -2,9 +2,12 @@ from fastapi import APIRouter
 
 from app.api.v1 import router as v1_router
 
+# Общий главный роутер
 router = APIRouter()
 
-@router.get("/", summary="Корневой эндпоинт")
+# Роутер для корневой ручки
+router_root = APIRouter(tags=['Root'])
+@router_root.get("/", summary="Корневой эндпоинт")
 async def root():
     """Корневой эндпоинт API"""
     return {
@@ -14,4 +17,10 @@ async def root():
         "status": "running"
     }
 
-router.include_router(v1_router.api_router)
+# роутер для подключения всех ручек vN_api
+router_api = APIRouter(prefix="/api")
+router_api.include_router(v1_router.api_router)
+
+
+router.include_router(router_api)
+router.include_router(router_root)

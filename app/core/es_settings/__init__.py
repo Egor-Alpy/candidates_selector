@@ -1,1 +1,1 @@
-from .mappings import ElasticMappings
+from .queries import ElasticQueries

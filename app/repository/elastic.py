@@ -19,7 +19,7 @@ class ElasticRepository:
         try:
             client = AsyncElasticsearch(
                 hosts=[settings.get_elastic_dsn],
-                max_retries=settings.ABSORBER_MAX_RETRIES,
+                max_retries=settings.ES_MAX_RETRIES,
                 retry_on_timeout=True
             )
 
@@ -203,7 +203,3 @@ class ElasticRepository:
         except Exception as e:
             logger.error(f"❌ Error getting document count for {index_name}: {e}")
             return 0
-
-
-# Создание глобального экземпляра
-es_repository = ElasticRepository()
