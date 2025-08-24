@@ -5,7 +5,7 @@ class ElasticQueries:
     """Агрегация поисковоых запросов для ElasticSearch"""
 
     @staticmethod
-    def search_es_v1(position_title: str, yandex_category: Optional[str] = '', offset: Optional[int]=100):
+    def get_query_v1(position_title: str, yandex_category: Optional[str] = '', size: Optional[int]=100):
         return {
             "query": {
                 "bool": {
@@ -36,5 +36,6 @@ class ElasticQueries:
                     ]
                 }
             },
-            "size": offset,
+            "size": size,
+
         }

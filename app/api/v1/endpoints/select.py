@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from app.core.dependencies.services import get_service_es_selector, get_service_vector_selector
+from app.core.dependencies.services import get_service_es_selector
 from app.core.logger import get_logger
-from app.schemas.request import ESCandidatesRequest, VectorCandidatesRequest
-from app.schemas.response import ESCandidatesResponse, VectorCandidatesResponse
+from app.schemas.request import ESCandidatesRequest
+from app.schemas.response import ESCandidatesResponse
 from app.services.es_selector import ElasticSearchSelector
-from app.services.vector_selector import VectorSelector
 
 router = APIRouter(prefix="/select", tags=["Select Candidates"])
 logger = get_logger(name=__name__)
@@ -27,11 +26,17 @@ logger = get_logger(name=__name__)
 @router.post('/es_1', response_model=ESCandidatesResponse)
 async def process_collection(
         request: ESCandidatesRequest,
-        processing_service: ElasticSearchSelector = Depends(get_service_es_selector),
+        es_service: ElasticSearchSelector = Depends(get_service_es_selector),
 ):
     """Получение кандидатов из коллекции индекса ES"""
     try:
-        return {"status": True, "candidates": [{}, {}]}
+        candidates = await es_service.find_candidates(
+            index_name=request.index_name,
+            position_title=request.position_title,
+            yandex_category=request.position_yandex_category,
+            size=request.size
+        )
+        return {"status": True, "candidates": candidates}
     except Exception as e:
         logger.error(f"Ошибка api-слоя: {e}")
-        return {"status": False, "candidates": [{}, {}]}
+        return {"status": False, "candidates": [{f"Ошибка api-слоя": {e}}]}

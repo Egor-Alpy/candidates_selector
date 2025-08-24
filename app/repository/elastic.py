@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Dict, Any, List
 
 from elasticsearch import AsyncElasticsearch
@@ -203,3 +204,22 @@ class ElasticRepository:
         except Exception as e:
             logger.error(f"❌ Error getting document count for {index_name}: {e}")
             return 0
+
+    async def make_query(self, index_name: str, body: dict):
+        try:
+            logger.info(f"🔍 Index: {index_name}")
+            logger.info(
+                f"🔍 Query body: {json.dumps(body, ensure_ascii=False, indent=2)}"
+            )
+
+            response = await self.client.search(index=index_name, body=body)
+
+            total_hits = response.body["hits"]["total"]
+            logger.info(f"📊 Total hits: {total_hits}")
+            logger.info(f"📊 Returned docs: {len(response.body['hits']['hits'])}")
+
+            return response.body
+
+        except Exception as e:
+            logger.error(f"❌ Error: {e}")
+            return False
