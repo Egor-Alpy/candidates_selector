@@ -2,11 +2,12 @@ from pydantic import BaseModel, Field
 
 
 class ESCandidatesRequest(BaseModel):
+    index_name: str = Field(..., description="Название индекса, в котором будет проводиться поиск")
     position_title: str = Field(..., description="Название тендерной позиции")
-    positon_yandex_category_id: int = Field(
+    position_yandex_category: str = Field(
         ...,
-        description="Подобранное через 'сервис-категоризатор' yandex_id категории для тендерной позиции ",
-    )
+        description="Подобранное через 'сервис-категоризатор' для тендерной позиции ")
+    size: int = Field(...,description="Максимум вывести в консоль кандидатов", ge=1)
 
 
 class VectorCandidatesRequest(BaseModel):

@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -8,4 +10,4 @@ class VectorCandidatesResponse(BaseModel):
 
 class ESCandidatesResponse(BaseModel):
     status: bool = Field(..., description="Статус выполнения задачи")
-    candidates: list[dict] = Field(..., description="Подобранные кандидаты ")
+    candidates: Any = Field(..., description="Подобранные кандидаты ")
