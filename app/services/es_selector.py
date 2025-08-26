@@ -10,17 +10,10 @@ class ElasticSearchSelector:
     def __init__(self, es_repo: ElasticRepository = None):
         self.es_repo = es_repo
 
-    async def find_candidates(self, index_name: str, position_title: str, yandex_category: str, size: int):
+    async def find_candidates(self, index_name: str, body: dict):
         """Поиск кандидатов"""
         try:
-            body = ElasticQueries.get_query_v1(
-                position_title=position_title,
-                yandex_category=yandex_category,
-                size=size
-            )
-            logger.info(f'body: {body}')
             candidates = await self.es_repo.make_query(index_name=index_name, body=body)
-            logger.info(f"candidates: {candidates}")
             return candidates
 
         except Exception as e:
