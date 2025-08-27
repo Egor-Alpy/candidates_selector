@@ -39,3 +39,36 @@ class ElasticQueries:
             "size": size,
 
         }
+    @staticmethod
+    def get_query_for_rabbit(position_title: str, yandex_category: Optional[str] = ''):
+        return {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "match": {
+                                "title": {
+                                    "query": position_title,
+                                    "operator": "or",
+                                }
+                            }
+                        },
+                        {
+                            "bool": {
+                                "should": [
+                                    {"term": {"yandex_category.exact": yandex_category}},
+                                    {
+                                        "match": {
+                                            "yandex_category": {
+                                                "query": yandex_category,
+                                                "operator": "or",
+                                            }
+                                        }
+                                    },
+                                ]
+                            }
+                        },
+                    ]
+                }
+            },
+        }
