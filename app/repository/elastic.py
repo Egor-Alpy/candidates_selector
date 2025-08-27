@@ -207,16 +207,16 @@ class ElasticRepository:
 
     async def make_query(self, index_name: str, body: dict):
         try:
-            logger.info(f"🔍 Index: {index_name}")
-            logger.info(
+            logger.debug(f"🔍 Index: {index_name}")
+            logger.debug(
                 f"🔍 Query body: {json.dumps(body, ensure_ascii=False, indent=2)}"
             )
 
             response = await self.client.search(index=index_name, body=body)
 
             total_hits = response.body["hits"]["total"]
-            logger.info(f"📊 Total hits: {total_hits}")
-            logger.info(f"📊 Returned docs: {len(response.body['hits']['hits'])}")
+            logger.debug(f"📊 Total hits: {total_hits}")
+            logger.debug(f"📊 Returned docs: {len(response.body['hits']['hits'])}")
 
             return response.body
 

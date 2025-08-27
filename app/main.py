@@ -25,12 +25,12 @@ async def lifespan(app: FastAPI):
 
 # Создание FastAPI приложения
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title=f"{settings.PROJECT_NAME} API",
     description=settings.PROJECT_DESCRIPTION,
     version=settings.PROJECT_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
