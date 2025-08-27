@@ -10,10 +10,9 @@ from app.services.publisher_service import TenderNotifier
 logger = get_logger(name=__name__)
 
 
-def get_service_es_selector(
-        es_repo: ElasticRepository = Depends(get_es_repository)
-) -> ElasticSearchSelector:
+def get_service_es_selector() -> ElasticSearchSelector:
     """Внедрение зависимости сервиса ElasticSearchSelector"""
+    es_repo = get_es_repository()
     logger.debug("⏺️ Создаем экземпляр ElasticSearchSelector сервиса...")
     return ElasticSearchSelector(es_repo=es_repo)
 

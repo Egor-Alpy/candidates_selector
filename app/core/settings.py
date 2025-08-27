@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Настройка api (fastapi)
     API_HOST: str = "localhost"
-    API_PORT: int = 8011
+    API_PORT: int = 8012
 
     # Настройка подключения к ElasticSearch
     ES_HOST: str = "elasticsearch"
@@ -55,6 +55,25 @@ class Settings(BaseSettings):
     RABBITMQ_PASS: str = '5brXrRUhQy8Sl8gs'
     RABBITMQ_VHOST: str = '/'
 
+    # PostgreSQL Configuration
+    PG_HOST: str = 'postgresql-dev.angora-ide.ts.net'
+    PG_USER: str = 'app'
+    PG_PASS: str = 'EqDiRgRvg7td57XBSxzfFdV0oADItYa302XKSfl03RRcLqwfdWVnPTaxSLzhFiJ6'
+    PG_PORT: int = 5432
+    PG_DB_NAME: str = 'app'
+
+    # PostgreSQL Pool Configuration
+    PG_POOL_SIZE: int = 5
+    PG_MAX_OVERFLOW: int = 10
+    PG_POOL_RECYCLE: int = 300
+    PG_POOL_PRE_PING: bool = True
+    PG_ECHO: bool = False
+
+    # Database Session Configuration
+    DB_EXPIRE_ON_COMMIT: bool = False
+    DB_AUTOFLUSH: bool = False
+    DB_AUTOCOMMIT: bool = False
+
     # Получение ссылки для подключения к MongoDB
     @property
     def get_mongo_connection_link(self):
@@ -76,12 +95,18 @@ class Settings(BaseSettings):
     def get_elastic_dsn(self) -> str:
         return f"http://{self.ES_HOST}:{self.ES_PORT}"
 
-        # Получение ссылки для подключения к RabbitMQ
-
+    # Получение ссылки для подключения к RabbitMQ
     @property
     def get_rabbitmq_dsn(self) -> str:
         return f'amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASS}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}'
 
+    # Получение ссылки для подключения к PostgreSQL
+    @property
+    def get_postgres_dsn(self) -> str:
+        return (
+            f'postgresql+asyncpg://{self.PG_USER}:{self.PG_PASS}@'
+            f'{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB_NAME}'
+        )
     class Config:
         env_file = ".env"
 
