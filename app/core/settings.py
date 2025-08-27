@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     MONGO_AUTHSOURCE: str = "admin"
     MONGO_DIRECT_CONNECTION: str = "true"
 
+    # Настройки RabbitMQ для FastStream
+    RABBITMQ_HOST: str = 'rabbitmq.angora-ide.ts.net'
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = 'admin'
+    RABBITMQ_PASS: str = '5brXrRUhQy8Sl8gs'
+    RABBITMQ_VHOST: str = '/'
+
     # Получение ссылки для подключения к MongoDB
     @property
     def get_mongo_connection_link(self):
@@ -68,6 +75,12 @@ class Settings(BaseSettings):
     @property
     def get_elastic_dsn(self) -> str:
         return f"http://{self.ES_HOST}:{self.ES_PORT}"
+
+        # Получение ссылки для подключения к RabbitMQ
+
+    @property
+    def get_rabbitmq_dsn(self) -> str:
+        return f'amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASS}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}'
 
     class Config:
         env_file = ".env"
