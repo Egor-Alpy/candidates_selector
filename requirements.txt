@@ -6,3 +6,6 @@ uvicorn~=0.35.0
 elasticsearch~=8.11.1
 aiohttp==3.12.15
 faststream[rabbit]==0.5.48
+sqlalchemy==2.0.43
+asyncpg==0.30.0
+greenlet==3.2.4
