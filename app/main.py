@@ -4,8 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import router
+from app.broker.broker import broker
 from app.core.logger import get_logger
 from app.core.settings import settings
+import app.broker.handlers
 
 logger = get_logger(name=__name__)
 
@@ -14,9 +16,11 @@ logger = get_logger(name=__name__)
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info(f"🚀 Запуск {settings.PROJECT_NAME} сервиса...")
+    await broker.start()
     yield
     # Shutdown
     logger.info(f"🛑 Остановка {settings.PROJECT_NAME}")
+    await broker.disconnect()
 
 
 # Создание FastAPI приложения
