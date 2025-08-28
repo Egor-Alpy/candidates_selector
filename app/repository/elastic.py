@@ -21,7 +21,8 @@ class ElasticRepository:
             client = AsyncElasticsearch(
                 hosts=[settings.get_elastic_dsn],
                 max_retries=settings.ES_MAX_RETRIES,
-                retry_on_timeout=True
+                retry_on_timeout=True,
+                timeout=30
             )
 
             logger.info("✅ Подключение к Elasticsearch установлено")
