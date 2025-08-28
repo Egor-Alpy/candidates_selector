@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import select
+from app.api.v5.endpoints import select
 
-api_router = APIRouter(prefix='/v1', tags=['v1'])
+api_router = APIRouter(prefix='/v5', tags=['v5'])
 
 routers = [select.router]
 

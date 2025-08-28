@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import router as v1_router
+from app.api.v5 import router as v5_router
 
 # Общий главный роутер
 router = APIRouter()
@@ -20,6 +21,7 @@ async def root():
 # роутер для подключения всех ручек vN_api
 router_api = APIRouter(prefix="/api")
 router_api.include_router(v1_router.api_router)
+router_api.include_router(v5_router.api_router)
 
 
 router.include_router(router_api)
