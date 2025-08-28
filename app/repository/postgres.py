@@ -1,7 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Sequence
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, text
 
 from app.core.logger import get_logger
@@ -25,4 +26,23 @@ class PostgresRepository:
 
         except Exception as e:
             logger.error(f'Ошибка получения позиций тендера {tender_id}: {e}')
+            return None
+
+
+    async def get_tender_positions_selectinload(self, tender_id: int) -> Sequence[TenderPositions] | None:
+        """Получение позиций тендера по его pg id вместе с атрибутами"""
+        try:
+            stmt = (
+                select(TenderPositions)
+                .options(selectinload(TenderPositions.attributes))
+                .where(TenderPositions.tender_id == tender_id)
+            )
+
+            result = await self.db.execute(stmt)
+            positions = result.scalars().all()
+
+            return positions
+
+        except Exception as e:
+            logger.error(f"Ошибка получения позиций тендера {tender_id}: {e}")
             return None
