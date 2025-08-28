@@ -88,3 +88,4 @@ async def process_collection(
     except Exception as e:
         logger.error(f"Ошибка api-слоя: {e}")
         return {"status": False, "candidates": [{f"Ошибка api-слоя": {e}}]}
+
