@@ -22,7 +22,7 @@ class ElasticRepository:
                 hosts=[settings.get_elastic_dsn],
                 max_retries=settings.ES_MAX_RETRIES,
                 retry_on_timeout=True,
-                timeout=30
+                timeout=300
             )
 
             logger.info("✅ Подключение к Elasticsearch установлено")

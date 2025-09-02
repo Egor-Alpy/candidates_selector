@@ -17,6 +17,7 @@ class ElasticSearchSelector:
         """Поиск кандидатов"""
         try:
             candidates = await self.es_repo.make_query(index_name=index_name, body=body)
+            logger.info(len(candidates['hits']['hits']))
             return candidates
 
         except Exception as e:
