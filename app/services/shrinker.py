@@ -77,6 +77,8 @@ class Shrinker:
                 if not found_match:
                     candidate['points'] -= 1
                     logger.info(f'Не найдено совпадение для характеристики: {pos_attr_data["parsed"]["name"]}')
+                if candidate['points'] >= position_max_points // 2:
+                    pass
 
             logger.info(f"Итоговые баллы кандидата {candidate['_source']['title']}: {candidate['points']}")
 
