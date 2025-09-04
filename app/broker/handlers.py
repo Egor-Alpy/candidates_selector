@@ -72,6 +72,15 @@ async def handle_tender_categorization(
         # Применяем shrinking к кандидатам
         await shrink_service.shrink(candidates=es_candidates, position=position)
 
+        # Добавить фильтрацию:
+        min_points = len(position.attributes) / 2  # type: ignore
+        filtered_hits = [
+            candidate
+            for candidate in es_candidates["hits"]["hits"]
+            if candidate.get("points", 0) >= min_points
+        ]
+        es_candidates["hits"]["hits"] = filtered_hits
+
         # Сохраняем результаты для позиции
         position_result = {
             "position_id": position.id,
