@@ -9,8 +9,8 @@ class ContextLogger:
 
     @staticmethod
     def setup_logger(
-            format: str = '%(asctime).19s | %(levelname).3s | %(message)s',
-            logger_name: str = 'base_logger',
+            format='%(asctime).19s | %(levelname).3s | %(message)s',
+            logger_name='base_logger',
             level: int = logging.DEBUG
         ) -> logging.Logger:
         """Настройка логера"""

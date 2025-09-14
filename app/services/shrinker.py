@@ -1,13 +1,13 @@
-import time
 import json
-from typing import Optional, List, Dict, Any
+import time
+from typing import Optional, List, Dict
 
 from app.core.logger import get_logger
 from app.models.tenders import TenderPositions
-from app.services.attrs_sorter import AttrsSorter
+from app.services.attrs_standardizer import AttrsStandardizer
 from app.services.trigrammer import Trigrammer
-from app.services.unit_normalizer import UnitNormalizer
-from app.services.vectorizer import Vectorizer
+from app.services.unit_standardizer import UnitStandardizer
+from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
@@ -16,9 +16,9 @@ class Shrinker:
     def __init__(
         self,
         trigrammer: Optional[Trigrammer] = None,
-        vectorizer: Optional[Vectorizer] = None,
-        attrs_sorter: Optional[AttrsSorter] = None,
-        unit_normalizer: Optional[UnitNormalizer] = None,
+        vectorizer: Optional[SemanticMatcher] = None,
+        attrs_sorter: Optional[AttrsStandardizer] = None,
+        unit_normalizer: Optional[UnitStandardizer] = None,
     ):
         self.trigrammer = trigrammer
         self.vectorizer = vectorizer
@@ -82,9 +82,9 @@ class Shrinker:
             min_required_points,
         )
 
-        logger.critical(f'Уходим в бесконечный сон, чтобы не завершить таску кролика...')
-        while True:
-            time.sleep(100000)
+        # logger.critical(f'Уходим в бесконечный сон, чтобы не завершить таску кролика...')
+        # while True:
+        #     time.sleep(100000)
 
     async def _parse_position_attributes(self, attributes) -> List[Dict]:
         """Парсинг атрибутов позиции"""
@@ -112,12 +112,9 @@ class Shrinker:
                 try:
                     unit = attr.unit
                     raw_string = f"{attr.name}: {attr.value} {unit}"
+                    logger.info(f"🔄 Raw request: {raw_string}")
                     parsed = await self.attrs_sorter.extract_attr_data(raw_string)
                     logger.info(f"🔄 Raw response: {parsed}")
-                    if parsed:
-                        if len(parsed) > 0:
-                            logger.info(f"🔄 First item: {parsed[0]}")
-                            logger.info(f"🔄 First item type: {type(parsed[0])}")
                 except Exception as e:
                     logger.error(f"failed: {e}")
 
@@ -129,25 +126,18 @@ class Shrinker:
                     }
                     parsed_attrs.append(parsed_data)
 
-                    logger.info(f"✅ Parsed data: {parsed[0]}")
-                    logger.info(f"   └─ Тип: {parsed[0].get('type', 'unknown')}")
-                    logger.info(f"   └─ Значение: {parsed[0].get('value', 'unknown')}")
+                    logger.info(f"  - Тип: {parsed[0].get('type', 'unknown')}")
+                    logger.info(f"  - Значение: {parsed[0].get('value', 'unknown')}")
                 else:
-                    logger.warning(
-                        f"❌ ALL FORMATS FAILED for: {attr.name} = {attr.value}"
-                    )
-                    logger.warning(f"❌ Final parsed result: {parsed}")
+                    logger.warning(f"❌ Final parsed result: {parsed} | {attr.name}, {attr.value}")
 
             except Exception as e:
-                logger.error(f"💥 CRITICAL ERROR for '{attr.name}': {e}")
-                logger.error(f"💥 Exception type: {type(e)}")
-                import traceback
-
-                logger.error(f"💥 Traceback: {traceback.format_exc()}")
+                logger.error(f"CRITICAL ERROR for '{attr.name}': {e}")
+                logger.error(f"Exception type: {type(e)}")
 
         logger.info(f"\n📊 ИТОГОВАЯ СТАТИСТИКА:")
         logger.info(f"📊 Всего атрибутов: {len(attributes)}")
-        logger.info(f"📊 Успешно распарсено: {len(parsed_attrs)}")
+        logger.info(f"📊 Успешно распаршено: {len(parsed_attrs)}")
         logger.info(f"📊 Не удалось распарсить: {len(attributes) - len(parsed_attrs)}")
 
         return parsed_attrs
@@ -174,13 +164,13 @@ class Shrinker:
             "early_exit": False,
         }
 
-        logger.info(f"🔎 Анализируем: {candidate_title}")
-        logger.info(f'🔎 Категория yandex: {candidate["_source"]["yandex_category"]}')
-        logger.info(f'🔎 Категория: {candidate["_source"]["category"]}')
-        logger.info(f"📊 Атрибутов кандидата: {len(candidate_attrs)}")
+        logger.info(f'🔎 Категория yandex: {candidate["_source"]["yandex_category"]} | Категория: {candidate["_source"]["category"]} | кол-во атрибутов: {len(candidate_attrs)}')
 
         # Парсим атрибуты кандидата
         candidate_parsed_attrs = await self._parse_candidate_attributes(candidate_attrs)
+        logger.warning(f'candidate parsed attrs:')
+        for attr in candidate_parsed_attrs:
+            logger.warning(f'{attr}')
 
         # Проверяем каждый атрибут позиции
         for pos_attr in position_attrs:
@@ -244,7 +234,11 @@ class Shrinker:
                 standardized_value = attr.get(
                     "standardized_value", attr.get("original_value", "")
                 )
-                standardized_unit = attr.get("standardized_unit")
+                if attr.get('attribute_type', 'simple') == 'simple':
+                    standardized_unit = attr.get("standardized_unit")
+                else:
+                    standardized_unit = attr.get("standardized_value")[0].get("unit")
+
                 attribute_type = attr.get("attribute_type", "simple")
 
                 # Создаем структуру совместимую с attrs_sorter
@@ -345,6 +339,7 @@ class Shrinker:
 
             # Проверка совместимости по названию
             name_similarity = await self._check_name_similarity(pos_name, cand_name)
+            # logger.warning(name_similarity)
             if name_similarity < 0.6:  # Порог схожести названий
                 continue
 

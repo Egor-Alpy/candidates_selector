@@ -2,14 +2,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sentence_transformers import SentenceTransformer
 
 from app.api.router import router
 from app.broker.broker import broker
 from app.core.logger import get_logger
 from app.core.settings import settings
 import app.broker.handlers
-from app.services.vectorizer import Vectorizer
+from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
@@ -18,17 +17,6 @@ logger = get_logger(name=__name__)
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info(f"🚀 Запуск {settings.PROJECT_NAME} сервиса...")
-
-    # ДОБАВИТЬ ЭТУ ЧАСТЬ:
-    logger.info("Загрузка модели SentenceTransformer...")
-    try:
-        app.state.vectorizer = Vectorizer(
-            "http://matcher-semantic.angora-ide.ts.net:8000"
-        )
-        logger.info("✅ Модель векторизации успешно загружена")
-    except Exception as e:
-        logger.error(f"❌ Ошибка загрузки модели векторизации: {e}")
-        raise
 
     await broker.start()
     yield

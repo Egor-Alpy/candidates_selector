@@ -37,7 +37,7 @@ class TenderNotifier:
             await self.broker.publish(
                 message_dict,
                 exchange=tender_exchange,
-                routing_key="tender.ready_for_categorization"
+                routing_key="tender.categorized"
                 #ToDo Определить routing_key
             )
 

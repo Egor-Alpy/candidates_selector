@@ -2,12 +2,13 @@ import aiohttp
 import logging
 
 from app.core.logger import get_logger
+from app.core.settings import settings
 
 logger = get_logger(name=__name__)
 
 
-class AttrsSorter:
-    def __init__(self, api_url: str = "http://localhost:8000"):
+class AttrsStandardizer:
+    def __init__(self, api_url=settings.SERVICE_LINK_ATTRS_STANDARDIZER):
         self.api_url = api_url
         self.session = None
 
@@ -28,7 +29,6 @@ class AttrsSorter:
             async with session.post(url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
-                    logger.info(result)
                     return result
                 else:
                     return None
@@ -42,10 +42,6 @@ class AttrsSorter:
             await self.session.close()
 
 
-attr_sorter = AttrsSorter()
+attr_sorter = AttrsStandardizer()
 
 import asyncio
-
-asyncio.run(attr_sorter.extract_attr_data('чикен макнагец 20 мп: 3 рубля'))
-
-

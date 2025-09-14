@@ -1,15 +1,12 @@
-from typing import Optional
-
 from app.core.es_settings import ElasticQueries
 from app.core.logger import get_logger
-from app.core.settings import settings
 from app.models.tenders import TenderPositions
 from app.repository.elastic import ElasticRepository
 
 logger = get_logger(name=__name__)
 
 
-class ElasticSearchSelector:
+class ElasticSelector:
     def __init__(self, es_repo: ElasticRepository = None):
         self.es_repo = es_repo
 

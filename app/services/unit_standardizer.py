@@ -7,8 +7,8 @@ from app.core.logger import get_logger
 logger = get_logger(name=__name__)
 
 
-class UnitNormalizer:
-    def __init__(self, api_url: str = "http://localhost:8001"):
+class UnitStandardizer:
+    def __init__(self, api_url: str):
         self.api_url = api_url
         self.session = None
 
@@ -41,10 +41,3 @@ class UnitNormalizer:
     async def close(self):
         if self.session and not self.session.closed:
             await self.session.close()
-
-
-unit_normalizer = UnitNormalizer()
-
-import asyncio
-
-asyncio.run(unit_normalizer.normalize_unit(value='2034', unit='ггц'))

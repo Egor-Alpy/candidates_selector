@@ -7,39 +7,40 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.broker.broker import broker, tender_exchange
 from app.core.dependencies.services import get_tender_notifier, get_service_es_selector
 from app.core.logger import get_logger
+from app.core.settings import settings
 from app.db.session import get_session
 from app.repository.mongo import MongoRepository
 from app.repository.postgres import PostgresRepository
-from app.services.attrs_sorter import AttrsSorter
-from app.services.es_selector import ElasticSearchSelector
+from app.services.attrs_standardizer import AttrsStandardizer
+from app.services.es_selector import ElasticSelector
 from app.services.publisher_service import TenderNotifier
 from app.services.shrinker import Shrinker
 from app.services.trigrammer import Trigrammer
-from app.services.unit_normalizer import UnitNormalizer
-from app.services.vectorizer import Vectorizer
+from app.services.unit_standardizer import UnitStandardizer
+from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
 
 @broker.subscriber(
     RabbitQueue(
-        "matching_queue", durable=True, routing_key="tender.ready_for_matching"
+        "matching_queue", durable=True, routing_key="tender.categorized"
     ),
     tender_exchange,
 )
 async def handle_tender_categorization(
     tender_id: int,
-    tender_number: str = None,
-    customer_name: str = None,
+    tender_number=None,
+    customer_name=None,
     notifier: TenderNotifier = Depends(get_tender_notifier),
-    es_service: ElasticSearchSelector = Depends(get_service_es_selector),
+    es_service: ElasticSelector = Depends(get_service_es_selector),
     session: AsyncSession = Depends(get_session),
 ):
     mongo_repo = MongoRepository()
-    vectorizer = Vectorizer()
+    vectorizer = SemanticMatcher(api_url=settings.SERVICE_LINK_SEMANTIC_MATCHER)
     trigrammer = Trigrammer(mongo_repo=mongo_repo)
-    unit_normalizer = UnitNormalizer()
-    attrs_sorter = AttrsSorter()
+    unit_normalizer = UnitStandardizer(api_url=settings.SERVICE_LINK_UNIT_STANDARDIZER)
+    attrs_sorter = AttrsStandardizer()
 
     # Исправлено: передаем все зависимости в shrink_service
     shrink_service = Shrinker(
@@ -62,7 +63,7 @@ async def handle_tender_categorization(
 
         # Получаем кандидатов для позиции
         es_candidates = await es_service.find_candidates_for_rabbit(
-            index_name="products_v5", position=position
+            index_name="products_v7", position=position
         )
 
         if not es_candidates or not es_candidates.get("hits", {}).get("hits"):

@@ -22,43 +22,41 @@ class Settings(BaseSettings):
     API_PORT: int = 8012
 
     # Настройка подключения к ElasticSearch
-    ES_HOST: str = "elasticsearch"
+    ES_HOST: str = "localhost"
     ES_PORT: int = 9200
-    ES_INDEX: str = "products_v1"
+    ES_INDEX: str = "products_v7"
     ES_MAX_RETRIES: int = 3
 
-    # Настройка подключения к MongoDB
-    # MONGO_DB_HOST: str = "alpy"
-    # MONGO_DB_PORT: int = 27017
-    # MONGO_DB_USER: str = "alpy"
-    # MONGO_DB_PASS: str = "NDB5A+alpy"
-    # MONGO_DB_NAME: str = "alpy"
-    # MONGO_AUTHMECHANISM: str = "alpy"
-    # MONGO_AUTHSOURCE: str = "alpy"
-    # MONGO_DIRECT_CONNECTION: str = 'alpy'
+    # Внешние сервисы
+    SERVICE_LINK_ATTRS_STANDARDIZER: str = "http://localhost:8000"
+    SERVICE_LINK_UNIT_STANDARDIZER: str = "http://localhost:8001"
+    SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8006"
 
     # Настройка подключения к MongoDB
-    MONGO_DB_HOST: str = "mongodb.angora-ide.ts.net"
-    MONGO_DB_PORT: int = 27017
+    MONGO_DB_HOST: str = "localhost"
+    MONGO_DB_PORT: int = 40001
     MONGO_DB_USER: str = "parser"
-    MONGO_DB_PASS: str = "NDB5A+Uv7hZ4pNnANQwVpMK5C2VpL30NsDkVDzpaKMtCqPV2"
+    MONGO_DB_PASS: str = "password"
     MONGO_DB_NAME: str = "categorized_products"
     MONGO_COLLECTION_NAME: str = "categorized_products"
     MONGO_AUTHMECHANISM: str = "SCRAM-SHA-256"
     MONGO_AUTHSOURCE: str = "admin"
-    MONGO_DIRECT_CONNECTION: str = "true"
+    MONGO_REPLICA_SET: str = "parser-mongodb"
+    MONGO_TLS: bool = True
+    MONGO_TLS_CA_FILE: str = "/Users/alpy/Downloads/_mongodb-ca-gitignore"
+    MONGO_DIRECT_CONNECTION: bool = False
 
     # Настройки RabbitMQ для FastStream
-    RABBITMQ_HOST: str = 'rabbitmq.angora-ide.ts.net'
+    RABBITMQ_HOST: str = 'localhost'
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = 'admin'
     RABBITMQ_PASS: str = '5brXrRUhQy8Sl8gs'
     RABBITMQ_VHOST: str = '/'
 
     # PostgreSQL Configuration
-    PG_HOST: str = 'postgresql-dev.angora-ide.ts.net'
+    PG_HOST: str = 'localhost'
     PG_USER: str = 'app'
-    PG_PASS: str = 'EqDiRgRvg7td57XBSxzfFdV0oADItYa302XKSfl03RRcLqwfdWVnPTaxSLzhFiJ6'
+    PG_PASS: str = 'postgres'
     PG_PORT: int = 5432
     PG_DB_NAME: str = 'app'
 
@@ -77,16 +75,32 @@ class Settings(BaseSettings):
     # Получение ссылки для подключения к MongoDB
     @property
     def get_mongo_connection_link(self):
-        if settings.MONGO_DB_USER and settings.MONGO_DB_PASS:
+        if self.MONGO_DB_USER and self.MONGO_DB_PASS:
+            # Базовая строка подключения
             connection_string = (
-                f"mongodb://{settings.MONGO_DB_USER}:{quote_plus(settings.MONGO_DB_PASS)}@"
-                f"{settings.MONGO_DB_HOST}:{settings.MONGO_DB_PORT}/{settings.MONGO_AUTHSOURCE}"
-                f"?authMechanism={settings.MONGO_AUTHMECHANISM}&directConnection={settings.MONGO_DIRECT_CONNECTION}"
+                f"mongodb://{self.MONGO_DB_USER}:{quote_plus(self.MONGO_DB_PASS)}@"
+                f"{self.MONGO_DB_HOST}:{self.MONGO_DB_PORT}/"
             )
+
+            # Добавляем параметры
+            params = [f"authSource={self.MONGO_AUTHSOURCE}", f"authMechanism={self.MONGO_AUTHMECHANISM}"]
+
+            if self.MONGO_REPLICA_SET:
+                params.append(f"replicaSet={self.MONGO_REPLICA_SET}")
+
+            if self.MONGO_TLS:
+                params.append("tls=true")
+                if self.MONGO_TLS_CA_FILE:
+                    params.append(f"tlsCAFile={self.MONGO_TLS_CA_FILE}")
+
+            if not self.MONGO_DIRECT_CONNECTION and self.MONGO_REPLICA_SET:
+                # directConnection должно быть false при использовании replica set
+                params.append("directConnection=false")
+
+            # Соединяем все параметры
+            connection_string += "?" + "&".join(params)
         else:
-            connection_string = (
-                f"mongodb://{settings.MONGO_DB_HOST}:{settings.MONGO_DB_PORT}"
-            )
+            connection_string = f"mongodb://{self.MONGO_DB_HOST}:{self.MONGO_DB_PORT}"
 
         return connection_string
 
@@ -108,7 +122,7 @@ class Settings(BaseSettings):
             f'{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB_NAME}'
         )
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
 
 
 settings = Settings()

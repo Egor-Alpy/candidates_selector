@@ -129,7 +129,7 @@ class ElasticRepository:
     async def get_last_document_by_field(
             self,
             index_name: str,
-            field: str = "indexed_at"  # ← Изменили по умолчанию
+            field="indexed_at"  # ← Изменили по умолчанию
     ) -> Optional[Dict[str, Any]]:
         """Получение последнего документа по указанному полю"""
         try:
