@@ -24,7 +24,7 @@ class ElasticSelector:
     async def find_candidates_for_rabbit(self, index_name: str, position: TenderPositions):
         """Поиск кандидатов"""
         try:
-            body = ElasticQueries.get_query_v5(
+            body = ElasticQueries.get_query_v6(
                 position=position
             )
             logger.info(f'body: {body}')
@@ -35,4 +35,3 @@ class ElasticSelector:
         except Exception as e:
             logger.error(f'Ошибка при поиске кандидатов в селекторе: {e}')
             return []
-

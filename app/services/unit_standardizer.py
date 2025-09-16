@@ -32,11 +32,11 @@ class UnitStandardizer:
                     logger.info(result)
                     return result
                 else:
-                    return 0.0
+                    return {}
 
         except Exception as e:
             logging.error(f"Ошибка при вычленении сущностей из названия и значения атрибутов: {e}")
-            return 0.0
+            return {}
 
     async def close(self):
         if self.session and not self.session.closed:

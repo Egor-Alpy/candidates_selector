@@ -24,13 +24,13 @@ class Settings(BaseSettings):
     # Настройка подключения к ElasticSearch
     ES_HOST: str = "localhost"
     ES_PORT: int = 9200
-    ES_INDEX: str = "products_v7"
+    ES_INDEX: str = "products_testik_v3"
     ES_MAX_RETRIES: int = 3
 
     # Внешние сервисы
     SERVICE_LINK_ATTRS_STANDARDIZER: str = "http://localhost:8000"
     SERVICE_LINK_UNIT_STANDARDIZER: str = "http://localhost:8001"
-    SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8006"
+    SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8081"
 
     # Настройка подключения к MongoDB
     MONGO_DB_HOST: str = "localhost"

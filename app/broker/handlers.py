@@ -1,4 +1,5 @@
 import json
+import time
 
 from faststream import Depends
 from faststream.rabbit import RabbitQueue
@@ -52,18 +53,23 @@ async def handle_tender_categorization(
 
     logger.info(f"Получен тендер для мэтчинга: {tender_id}")
 
+    ts_pg = time.time()
+
     pg_service = PostgresRepository(session)
     positions = await pg_service.get_tender_positions_selectinload(tender_id)
+
+    tr_pg = time.time() - ts_pg
 
     # Исправлено: накапливаем результаты по всем позициям
     all_position_results = []
 
+    ts_es = time.time()
     for position in positions:
         logger.info(f"Обрабатываем позицию: {position.title}")
 
         # Получаем кандидатов для позиции
         es_candidates = await es_service.find_candidates_for_rabbit(
-            index_name="products_v7", position=position
+            index_name=settings.ES_INDEX, position=position
         )
 
         if not es_candidates or not es_candidates.get("hits", {}).get("hits"):
@@ -120,8 +126,13 @@ async def handle_tender_categorization(
     except Exception as e:
         logger.error(f"Ошибка при закрытии сессий: {e}")
 
+    tr_es = time.time() - ts_es
+
     logger.info(
         f"Завершен мэтчинг для тендера {tender_id}. Обработано позиций: {len(positions)}"
     )
-
+    logger.info(f'time_pg: {tr_pg} | time_es: {tr_es}')
+    logger.warning(f'Уходим в бесконечный сон, чтобы повторить прогон!!!')
+    while True:
+        time.sleep(10)
     return final_results
