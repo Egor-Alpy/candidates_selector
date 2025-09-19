@@ -25,7 +25,7 @@ class Shrinker:
         self.attrs_sorter = attrs_sorter
         self.unit_normalizer = unit_normalizer
 
-    async def shrink(self, candidates: dict, position: TenderPositions):
+    async def shrink(self, candidates: dict, position: TenderPositions, pg_service=None):
         """Основной метод для оценки кандидатов"""
 
         # === ЭТАП 1: ПОДГОТОВКА ===
@@ -41,40 +41,49 @@ class Shrinker:
         logger.info(f"🎯 Максимальные баллы: {position_max_points}")
         logger.info(f"⚡ Минимум для прохода: {min_required_points}")
 
+        ts = time.time()
         # Парсим атрибуты позиции с группировкой
         position_attrs = await self._parse_position_attributes(position.attributes)
-        logger.critical(position_attrs)
+        logger.critical(f'time парсинга атрибутов позиции с группировкой: {time.time()-ts}')
 
         if len(position_attrs.get('attrs', [])) == 0:
             logger.warning("❌ Нет атрибутов для сравнения")
             return
 
         # === ЭТАП 2: ОБРАБОТКА КАНДИДАТОВ ===
-        logger.info(f"\n🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов")
+        ts = time.time()
+        logger.warning(f"\n🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов")
 
         processed_candidates = []
-        unmatched_characteristics = set()
 
         for idx, candidate in enumerate(candidates["hits"]["hits"]):
             logger.info(f"\n--- Кандидат {idx + 1}: {candidate['_source']['title']} ---")
 
+            ts_cand = time.time()
             result = await self._process_single_candidate(
                 candidate,
                 position_attrs,
                 min_required_points,
-                unmatched_characteristics,
             )
 
             if result:
                 processed_candidates.append(result)
 
+            logger.critical(
+                f"time на обработку одного кандидата ТОТАЛ: {time.time()-ts_cand}"
+            )
+
+        logger.critical(
+            f"time на обработку всех атрибутов ТОТАЛ ОБЩИЙ: {time.time()-ts}"
+        )
+
         # === ЭТАП 3: ФИНАЛЬНАЯ ОБРАБОТКА ===
         await self._finalize_results(
             candidates,
             processed_candidates,
-            unmatched_characteristics,
             position,
             min_required_points,
+            pg_service=pg_service
         )
 
     async def _parse_position_attributes(self, attributes) -> Dict:
@@ -87,18 +96,12 @@ class Shrinker:
         }
 
         for i, attr in enumerate(attributes):
-            logger.info(
-                f"📊 Attr {i+1}: name='{attr.name}', value='{attr.value}', "
-                f"type='{getattr(attr, 'type', 'NO_TYPE')}', unit='{getattr(attr, 'unit', 'NO_UNIT')}'"
-            )
-
-        parsed_attrs = []
-
-        for i, attr in enumerate(attributes):
             logger.info(f"\n--- АТРИБУТ ПОЗИЦИИ {i+1}/{len(attributes)} ---")
+
             try:
                 parsed = None
                 try:
+                    # Распаршиваем характеристику позиции
                     unit = getattr(attr, "unit", "") or ""
                     raw_string = f"{attr.name}: {attr.value} {unit}".strip()
                     logger.info(f"🔄 Raw request: {raw_string}")
@@ -107,110 +110,31 @@ class Shrinker:
                 except Exception as e:
                     logger.error(f"failed: {e}")
 
+                # Определяем тип разобранной/распаршенной характеристики позиции
                 if parsed and len(parsed) > 0:
+                    parsed = parsed[0]
+
                     # Определяем подтип для simple значений
-                    original_type = parsed[0].get("type", "simple")
-                    if original_type == "simple":
-                        value = parsed[0].get("value", {}).get("value")
-                        unit = parsed[0].get("value", {}).get("unit")
+                    parsed_type = parsed.get("type", "simple")
+                    if parsed_type == "simple":
+                        value = parsed.get("value", {}).get("value")
                         final_type = self._determine_value_subtype(value)
                     else:
-                        final_type = original_type
+                        final_type = parsed_type
 
-                    # Стандартизация единиц измерения если есть unit_normalizer и единица
-                    normalized_parsed = parsed[0].copy()
-                    if original_type == "numeric":
-                        unit_value = parsed[0].get("value", {}).get("unit")
-                        numeric_value = parsed[0].get("value", {}).get("value")
+                    # Стандартизация единиц измерения если она есть
+                    normalized_parsed = parsed.copy()
+                    normalized_parsed['original_name'] = attr.name
+                    normalized_parsed['original_value'] = attr.value
+                    normalized_parsed['original_unit'] = attr.unit
+                    normalized_parsed['pg_id'] = attr.id
+                    normalized_parsed['type'] = final_type
+                    normalized_parsed = await self._standardize_units_and_values(final_type=final_type, parsed=parsed, normalized_parsed=normalized_parsed)
+                    logger.info(f'🔄 Parsed response: {normalized_parsed}')
 
-                        if unit_value and isinstance(numeric_value, (int, float)):
-                            try:
-                                logger.info(
-                                    f"🔧 Normalizing unit: {numeric_value} {unit_value}"
-                                )
-                                normalized_result = (
-                                    await self.unit_normalizer.normalize_unit(
-                                        str(numeric_value), unit_value
-                                    )
-                                )
-
-                                if normalized_result.get("success", False):
-                                    # Обновляем данные нормализованными значениями
-                                    normalized_parsed["value"]["value"] = (
-                                        normalized_result.get(
-                                            "normalized_value", numeric_value
-                                        )
-                                    )
-                                    normalized_parsed["value"]["unit"] = (
-                                        normalized_result.get(
-                                            "normalized_unit", unit_value
-                                        )
-                                    )
-                                    logger.info(
-                                        f"✅ Unit normalized: {normalized_result.get('normalized_value')} {normalized_result.get('normalized_unit')}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"⚠️ Unit normalization failed for {numeric_value} {unit_value}"
-                                    )
-                            except Exception as e:
-                                logger.error(f"💥 Error normalizing unit: {e}")
-                    elif original_type == "range":
-                        range_values = parsed[0].get("value", [])
-                        if len(range_values) == 2:
-                            for i, range_item in enumerate(range_values):
-                                unit_value = range_item.get("unit")
-                                numeric_value = range_item.get("value")
-
-                                if unit_value and self.unit_normalizer and (isinstance(numeric_value, (int, float)) or numeric_value in ['_inf+', '_inf-']):
-                                    try:
-                                        if numeric_value in ["_inf+", "_inf-"]:
-                                            # Для бесконечных значений стандартизируем только единицу, значение не трогаем
-                                            normalized_result = await self.unit_normalizer.normalize_unit(
-                                                "1", unit_value
-                                            )
-                                            logger.info(f'normalized_result: {normalized_result}')
-                                            logger.info(f'normalized_parsed: {normalized_parsed}')
-                                            if normalized_result.get("success", False):
-                                                normalized_parsed["value"][i]["unit"] = normalized_result.get(
-                                                    "normalized_unit", unit_value
-                                                )
-                                                # Значение остается как было (_inf+ или _inf-)
-                                        else:
-                                            # Для обычных чисел стандартизируем и значение, и единицу
-                                            normalized_result = await self.unit_normalizer.normalize_unit(
-                                                str(numeric_value), unit_value
-                                            )
-                                            if normalized_result.get("success", False):
-                                                normalized_parsed["value"][i][
-                                                    "value"
-                                                ] = normalized_result.get(
-                                                    "normalized_value", numeric_value
-                                                )
-                                                normalized_parsed["value"][i][
-                                                    "unit"
-                                                ] = normalized_result.get(
-                                                    "normalized_unit", unit_value
-                                                )
-                                    except Exception as e:
-                                        logger.error(
-                                            f"Error normalizing range unit: {e}"
-                                        )
-                    parsed_data = {
-                        "parsed": normalized_parsed,
-                        "type": final_type,
-                    }
-
-                    attrs_data["attrs"].append(parsed_data)
-
-                    logger.info(f"  - Тип: {final_type} (оригинал: {original_type})")
-                    logger.info(
-                        f"  - Значение: {normalized_parsed.get('value', 'unknown')}"
-                    )
+                    attrs_data["attrs"].append(normalized_parsed)
                 else:
-                    logger.warning(
-                        f"❌ Final parsed result: {parsed} | {attr.name}, {attr.value}"
-                    )
+                    logger.warning(f"❌ Final parsed result: {parsed} | {attr.name}, {attr.value}")
 
             except Exception as e:
                 logger.error(f"CRITICAL ERROR for '{attr.name}': {e}")
@@ -221,28 +145,87 @@ class Shrinker:
         logger.info(f"📊 Всего атрибутов: {len(attributes)}")
         logger.info(f"📊 Успешно распаршено: {len(attrs_data['attrs'])}")
         logger.info(f"📊 Статистика по типам:")
-        for attr_type, count in type_stats.items():
-            if count > 0:
-                logger.info(f"  📊 {attr_type}: {count} атрибутов")
-
-        time.sleep(3)
-        # Добавляем метаданные
-        attrs_data["_metadata"] = {
-                "total_count": len(attrs_data["attrs"]),
-                "type_stats": type_stats,
-                "processing_timestamp": time.time(),
-            }
 
         return attrs_data
+
+    async def _standardize_units_and_values(self, final_type, parsed, normalized_parsed):
+        if final_type == "numeric":
+            value = parsed.get("value", {}).get("unit")
+            unit = parsed.get("value", {}).get("value")
+
+            if unit and isinstance(value, (int, float)):
+                try:
+                    normalized_result = await self.unit_normalizer.normalize_unit(
+                        str(value), unit
+                    )
+
+                    if normalized_result.get("success", False):
+                        # Обновляем данные нормализованными значениями
+                        normalized_parsed["value"]["value"] = normalized_result.get(
+                            "base_value", value
+                        )
+                        normalized_parsed["value"]["unit"] = normalized_result.get(
+                            "base_unit", unit
+                        )
+                    else:
+                        logger.warning(
+                            f"⚠️ Unit normalization failed for {value} {unit}"
+                        )
+
+                except Exception as e:
+                    logger.error(f"💥 Error normalizing unit: {e}")
+
+        elif final_type == "range":
+            range_values = parsed.get("value", [])
+            if len(range_values) == 2:
+                for j, range_item in enumerate(range_values):
+                    unit = range_item.get("unit")
+                    value = range_item.get("value")
+
+                    if (
+                        unit
+                        and self.unit_normalizer
+                        and (
+                            isinstance(value, (int, float))
+                            or value in ["_inf+", "_inf-"]
+                        )
+                    ):
+                        try:
+                            if value in ["_inf+", "_inf-"]:
+                                # Для бесконечных значений стандартизируем только единицу, значение не трогаем
+                                normalized_result = (
+                                    await self.unit_normalizer.normalize_unit("1", unit)
+                                )
+                                if normalized_result.get("success", False):
+                                    normalized_parsed["value"][j]["unit"] = (
+                                        normalized_result.get("base_unit", unit)
+                                    )
+                            else:
+                                # Для обычных чисел стандартизируем и значение, и единицу
+                                normalized_result = (
+                                    await self.unit_normalizer.normalize_unit(
+                                        str(value), unit
+                                    )
+                                )
+                                if normalized_result.get("success", False):
+                                    normalized_parsed["value"][j]["value"] = (
+                                        normalized_result.get("base_value", value)
+                                    )
+                                    normalized_parsed["value"][j]["unit"] = (
+                                        normalized_result.get("base_unit", unit)
+                                    )
+                        except Exception as e:
+                            logger.error(f"Error normalizing range unit: {e}")
+        return normalized_parsed
 
     async def _process_single_candidate(
         self,
         candidate: Dict,
         position_attrs: Dict,
         min_required_points: int,
-        unmatched_characteristics: set,
     ) -> Optional[Dict]:
         """Обработка одного кандидата с группировкой"""
+        candidate_mongo_id = candidate["_source"].get("id")
 
         candidate_attrs = candidate["_source"].get("attributes", [])
         position_attrs = position_attrs["attrs"]
@@ -250,6 +233,7 @@ class Shrinker:
         # Инициализация результата
         result = {
             "candidate": candidate,
+            "candidate_mongo_id": candidate_mongo_id,
             "points": 0,
             "max_points": len(position_attrs),
             "matched_attributes": [],
@@ -264,48 +248,32 @@ class Shrinker:
             f"кол-во атрибутов: {len(candidate_attrs)}"
         )
 
+        ts_gropu = time.time()
         # Парсим атрибуты кандидата с группировкой
-        candidate_grouped_attrs = await self._parse_candidate_attributes(
-            candidate_attrs
-        )
+        candidate_grouped_attrs = await self._parse_candidate_attributes(candidate_attrs)
 
-        for a, b in candidate_grouped_attrs.items():
-            logger.warning(f"{a, b}")
-
-        # Логируем статистику по типам
-        cand_metadata = candidate_grouped_attrs.get("_metadata", {})
-
-        logger.info(f"📊 Кандидат по типам: {cand_metadata.get('type_stats', {})}")
+        logger.critical(f'time группировка всех атрибутов одного кандидата: {time.time()-ts_gropu}')
 
         # Сохраняем детальную информацию
         result["attribute_matching_details"] = {
-            "candidate_attrs_by_type": cand_metadata.get("type_stats", {}),
             "total_position_attrs": len(position_attrs),
             "total_candidate_attrs": len(candidate_grouped_attrs["all"]),
-            "type_match_strategies": {},
         }
 
         # Проверяем каждый атрибут позиции
         for pos_attr in position_attrs:
-            logger.info(f'pos_attr: {pos_attr}')
-            logger.info(f'cand_attrs: {candidate_grouped_attrs}')
-            pos_type = pos_attr.get("type", "unknown")
-
-            # Стратегия 1: Точное совпадение типов
-            target_group = candidate_grouped_attrs.get(pos_type, [])
-            match_found = await self._find_attribute_match_in_group(
-                pos_attr, target_group, result, f"exact_type_match_{pos_type}", group_type=pos_type
-            )
-
+            pos_type = pos_attr.get("type", "unknown_pos_type")
+            match_found = False # Todo: delete
             # Стратегия 2: Целенаправленное кросс-типовое сравнение
-            if not match_found:
+            if True:  # previously: if not match_found
+                ts_get_comp_attr_groups = time.time()
                 compatible_groups = self._get_compatible_attribute_groups(
                     pos_type, candidate_grouped_attrs
                 )
-                logger.warning('compatible_groups')
-                for group in compatible_groups:
-                    logger.warning(group)
+                logger.critical(f'time получение совместимых групп {time.time()-ts_get_comp_attr_groups}')
+
                 for group_name, group_attrs in compatible_groups:
+                    ts_find_match = time.time()
                     match_found = await self._find_attribute_match_in_group(
                         pos_attr,
                         group_attrs,
@@ -315,15 +283,15 @@ class Shrinker:
                     )
                     if match_found:
                         break
+                logger.critical(f'time ищем в группе мэтч {time.time()-ts_find_match}')
 
             # Обновляем результат
             if match_found:
                 result["points"] += 1
-                logger.info(f"  ✅ +1 балл за: {pos_attr['parsed']['name']}")
+                logger.info(f"  ✅ +1 балл за: {pos_attr['name']}")
             else:
-                result["unmatched_attributes"].append(pos_attr['parsed']['name'])
-                unmatched_characteristics.add(pos_attr['parsed']['name'])
-                logger.info(f"  ❌ Не найдено: {pos_attr['parsed']['name']}")
+                result["unmatched_attributes"].append(pos_attr['name'])
+                logger.info(f"  ❌ Не найдено: {pos_attr['name']}")
 
             # Проверка раннего выхода
             remaining_attrs = (
@@ -351,6 +319,7 @@ class Shrinker:
             return None
 
         logger.info(f"✅ Кандидат принят!")
+
         return result
 
     def _get_compatible_attribute_groups(
@@ -358,11 +327,11 @@ class Shrinker:
     ) -> List[tuple]:
         """Определение совместимых групп атрибутов для кросс-типового сравнения"""
         compatibility_rules = {
-            "numeric": ["range"],
-            "range": ["numeric"],
-            "string": ["multiple", "boolean"],
-            "multiple": ["string", "boolean"],
-            "boolean": ["string", "multiple"],
+            "numeric": ["range", "numeric"],
+            "range": ["numeric", "range"],
+            "string": ["multiple", "boolean", "string"],
+            "multiple": ["string", "boolean", "multiple"],
+            "boolean": ["string", "multiple", "boolean"],
         }
 
         compatible_groups = []
@@ -393,31 +362,23 @@ class Shrinker:
             "unknown": [],
             "all": [],
         }
-
-        # Статистика по типам
-        type_stats = {
-            "boolean": 0,
-            "numeric": 0,
-            "string": 0,
-            "range": 0,
-            "multiple": 0,
-            "unknown": 0,
-        }
+        logger.info(candidate_attrs)
 
         for attr in candidate_attrs:
             try:
-                # Атрибуты кандидатов УЖЕ ПРЕДОБРАБОТАНЫ в Elasticsearch
-                standardized_name = attr.get(
-                    "standardized_name", attr.get("original_name", "")
-                )
-                standardized_value = attr.get(
-                    "standardized_value", attr.get("original_value", "")
-                )
-                attribute_type = attr.get("attribute_type", "simple")
+                standardized_name = attr.get("standardized_name")
+                if not standardized_name:
+                    standardized_name = attr.get("original_name", None)
+                standardized_value = attr.get("standardized_value")
+                if not standardized_value:
+                    standardized_value = attr.get("original_value", None)
+                attribute_type = attr.get("attribute_type", None)
+                if attribute_type is None:
+                    attribute_type = "unknown" # ToDo: заметки по поводу несмэтченных хар-к были сделаны в tenders workplace
 
                 # Определение единицы измерения в зависимости от типа
                 if attribute_type == "simple":
-                    standardized_unit = attr.get("standardized_unit")
+                    standardized_unit = attr.get("standardized_unit", "")
                 else:
                     # Для range/multiple пытаемся извлечь unit из первого элемента
                     if (
@@ -435,12 +396,11 @@ class Shrinker:
 
                 # Создаем структуру совместимую с attrs_sorter
                 parsed_structure = {
+                    "original_name": attr.get("original_name", ""),
+                    "original_value": attr.get("original_value", ""),
                     "name": standardized_name,
                     "type": attribute_type,
-                    "value": self._convert_to_attrs_sorter_format(
-                        standardized_value, standardized_unit, attribute_type
-                    ),
-                    "raw_data": attr,
+                    "value": self._convert_to_attrs_sorter_format(standardized_value, standardized_unit, attribute_type)
                 }
 
                 # Определяем подтип для simple значений
@@ -449,26 +409,50 @@ class Shrinker:
                         standardized_value
                     )
                     final_type = value_subtype
+                    parsed_structure['type'] = final_type
                 else:
                     final_type = attribute_type
+                    parsed_structure['type'] = final_type
 
-                parsed_attr = {
-                    "parsed": parsed_structure,
-                    "display_name": f"{standardized_name}: {standardized_value}",
-                    "type": final_type
-                }
+                if final_type == "numeric":
+                    value = parsed_structure.get("value", {}).get("value")
+                    unit = parsed_structure.get("value", {}).get("unit")
+
+                    if unit and isinstance(value, (int, float)):
+                        try:
+                            normalized_result = (
+                                await self.unit_normalizer.normalize_unit(
+                                    str(value), unit
+                                )
+                            )
+
+                            if normalized_result.get("success", False):
+                                # Обновляем данные нормализованными значениями
+                                parsed_structure["value"]["value"] = (
+                                    normalized_result.get("base_value", value)
+                                )
+                                parsed_structure["value"]["unit"] = (
+                                    normalized_result.get("base_unit", unit)
+                                )
+                            else:
+                                logger.warning(
+                                    f"⚠️ Unit normalization failed for {value} {unit}"
+                                )
+
+                        except Exception as e:
+                            logger.error(f"💥 Error normalizing unit: {e}")
+                elif final_type == "range":
+                    pass
 
                 # Группировка по типам
                 if final_type in grouped_attrs:
-                    grouped_attrs[final_type].append(parsed_attr)
-                    type_stats[final_type] += 1
+                    grouped_attrs[final_type].append(parsed_structure)
                 else:
-                    grouped_attrs["unknown"].append(parsed_attr)
-                    type_stats["unknown"] += 1
+                    grouped_attrs["unknown"].append(parsed_structure)
                     logger.warning(f"⚠️ Unknown attribute type: {final_type} for {attr.get('original_name', 'name does not defined')}")
 
                 # Добавляем в общий список для обратной совместимости
-                grouped_attrs["all"].append(parsed_attr)
+                grouped_attrs["all"].append(parsed_structure)
 
             except Exception as e:
                 logger.error(f"💥 Ошибка конвертации атрибута кандидата: {e}")
@@ -476,16 +460,6 @@ class Shrinker:
 
         # Логирование статистики
         logger.info(f"📊 Converted {len(grouped_attrs['all'])} candidate attributes:")
-        for attr_type, count in type_stats.items():
-            if count > 0:
-                logger.info(f"  📊 {attr_type}: {count} атрибутов")
-
-        # Добавляем метаданные
-        grouped_attrs["_metadata"] = {
-            "total_count": len(grouped_attrs["all"]),
-            "type_stats": type_stats,
-            "processing_timestamp": time.time(),
-        }
 
         return grouped_attrs
 
@@ -606,33 +580,35 @@ class Shrinker:
         group_type: str
     ) -> bool:
         """Поиск совпадения атрибута в конкретной группе кандидатов"""
-
         pos_type = pos_attr.get("type")
-        pos_name = pos_attr["parsed"].get("name", "")
-
-        logger.warning(f'pos_type = {pos_type} | cand_type = {group_type}')
+        pos_name = pos_attr.get("name", "")
 
         for cand_attr in candidate_attrs_group:
             cand_type = group_type
-            cand_name = cand_attr["parsed"].get("name", "")
+            cand_name = cand_attr.get("name", "")
 
             # Проверка совместимости по названию
             name_similarity = await self._check_name_similarity(pos_name, cand_name)
-            logger.info(f'name_similarity: {name_similarity} | {pos_name} - {cand_name}')
+            logger.info(f'name_similarity: {name_similarity} - P: {pos_name} - C: {cand_name}')
 
             if name_similarity < 0.7:
                 continue
 
             # Проверка совместимости по типу и значению
             value_match = await self._check_value_compatibility(
-                pos_attr["parsed"], pos_type=pos_type, cand_parsed=cand_attr["parsed"], cand_type=cand_type
+                pos_attr, pos_type=pos_type, cand_parsed=cand_attr, cand_type=cand_type
             )
+            logger.warning(f'value_match: {value_match} - P: {pos_attr} - C: {cand_attr}')
 
             if value_match:
                 result["matched_attributes"].append(
                     {
-                        "position_attr": f"'{pos_attr['parsed']['name']}': {pos_attr['parsed']['value']}",
-                        "candidate_attr": f"'{cand_attr['parsed']['name']}': {cand_attr['parsed']['value']}",
+                        "position_attr_id": pos_attr.get("pg_id", None),
+                        "original_position_attr_name": pos_attr['original_name'],
+                        "original_position_attr_value": pos_attr['original_value'],
+                        "original_position_attr_unit": pos_attr['original_unit'],
+                        "original_product_attr_name": cand_attr['original_name'],
+                        "original_product_attr_value": cand_attr['original_value'],
                         "name_similarity": name_similarity,
                         "match_type": f"{pos_attr.get('type', 'unknown')} vs {cand_attr.get('type', 'unknown')}",
                         "matching_strategy": match_type,
@@ -720,7 +696,7 @@ class Shrinker:
                 f"Boolean names comparison: '{pos_name}' vs '{cand_name}' = {similarity}"
             )
 
-            return similarity >= 0.8
+            return similarity >= 0.7
 
         except Exception as e:
             logger.error(f"Ошибка сравнения названий булевых атрибутов: {e}")
@@ -744,7 +720,7 @@ class Shrinker:
                 f"Boolean vs other type names: '{bool_name}' vs '{other_name}' = {similarity}"
             )
 
-            return similarity >= 0.8
+            return similarity >= 0.7
 
         except Exception as e:
             logger.error(f"Ошибка кросс-типового сравнения с boolean: {e}")
@@ -814,8 +790,8 @@ class Shrinker:
             similarity = await self.vectorizer.compare_two_strings(
                 pos_value, cand_value
             )
-            logger.info(similarity >= 0.8)
-            return similarity >= 0.8
+            logger.info(similarity >= 0.7)
+            return similarity >= 0.7
 
         except Exception as e:
             logger.error(f"Ошибка сравнения строковых значений: {e}")
@@ -938,6 +914,7 @@ class Shrinker:
 
             if len(range_vals) < 2:
                 return False
+
             # Нормализация единиц для значения в диапазоне
             value_unit = value_data.get("value", {}).get("unit")
             range_unit = range_vals[0].get("unit") if range_vals else None
@@ -978,7 +955,6 @@ class Shrinker:
                 start = float("-inf")
             if end == "_inf+":
                 end = float("inf")
-
             return start <= value <= end
 
         except Exception as e:
@@ -1017,9 +993,9 @@ class Shrinker:
         self,
         candidates: dict,
         processed_candidates: List[Dict],
-        unmatched_characteristics: set,
         position: TenderPositions,
         min_required_points: int,
+        pg_service
     ):
         """Финальная обработка результатов"""
 
@@ -1030,23 +1006,54 @@ class Shrinker:
         processed_candidates.sort(key=lambda x: x["points"], reverse=True)
 
         logger.info(f"🎯 Прошедших кандидатов: {len(processed_candidates)}")
-        logger.info(f"❌ Несметченных характеристик: {len(unmatched_characteristics)}")
 
         candidates["hits"]["hits"] = [
             item["candidate"] for item in processed_candidates
         ]
 
+        attributes_matches_data = []
+        tender_matches_data = []
+
         for i, result in enumerate(processed_candidates):
-            candidates["hits"]["hits"][i]["points"] = result["points"]
-            candidates["hits"]["hits"][i]["matched_attributes"] = result[
-                "matched_attributes"
-            ]
-            candidates["hits"]["hits"][i]["unmatched_attributes"] = result[
-                "unmatched_attributes"
-            ]
-            candidates["hits"]["hits"][i]["attribute_matching_details"] = result[
-                "attribute_matching_details"
-            ]
+            logger.critical(result)
+            logger.critical(f'position: {position}')
+
+            tender_position_id = position.id
+            tender_position_max_points = result['attribute_matching_details']['total_position_attrs']
+            tender_position_score = result.get("points")
+            tender_position_percentage_match_score = round(tender_position_score / tender_position_max_points * 100, 1)
+            product_mongo_id = result['candidate']['_source']['id']
+
+            # Данные для основного соответствия
+            tender_match_data = {
+                "tender_position_id": tender_position_id,
+                "product_id": product_mongo_id,
+                "match_score": tender_position_score,
+                "max_match_score": tender_position_max_points,
+                "percentage_match_score": tender_position_percentage_match_score,
+            }
+            tender_matches_data.append(tender_match_data)
+
+            for matched_char in result['matched_attributes']:
+                match_data = {
+                    'tender_id': position.tender_id,
+                    'tender_position_id': tender_position_id,
+                    'product_mongo_id': product_mongo_id,
+                    'position_attr_id': matched_char['position_attr_id'],
+                    'position_attr_name': matched_char['original_position_attr_name'],
+                    'position_attr_value': matched_char['original_position_attr_value'],
+                    'position_attr_unit': matched_char.get('original_position_attr_unit'),
+                    'product_attr_name': matched_char['original_product_attr_name'],
+                    'product_attr_value': str(matched_char['original_product_attr_value']),
+                }
+                attributes_matches_data.append(match_data)
+
+        # Выполняем батчевые вставки
+        if tender_matches_data:
+            await pg_service.create_tender_matches_batch(tender_matches_data)
+
+        if attributes_matches_data:
+            await pg_service.create_tender_position_attribute_matches_bulk(attributes_matches_data)
 
         # Создаем расширенный отчет
         report = {
@@ -1054,19 +1061,19 @@ class Shrinker:
             "total_candidates_processed": len(processed_candidates),
             "min_required_points": min_required_points,
             "max_possible_points": len(position.attributes),
-            "unmatched_characteristics": list(unmatched_characteristics),
             "attribute_type_analysis": self._analyze_attribute_types(
                 processed_candidates
             ),
             "top_candidates": [
                 {
+                    "candidate_mongo_id": result["candidate_mongo_id"],
                     "title": result["candidate"]["_source"]["title"],
                     "points": result["points"],
                     "matched_attributes": result["matched_attributes"],
                     "unmatched_attributes": result["unmatched_attributes"],
                     "attribute_matching_details": result["attribute_matching_details"],
                 }
-                for result in processed_candidates[:10]
+                for result in processed_candidates
             ],
         }
 
@@ -1081,11 +1088,6 @@ class Shrinker:
             logger.info(
                 f"{i}. {result['candidate']['_source']['title']} - {result['points']} баллов"
             )
-
-        if unmatched_characteristics:
-            logger.warning("\n❌ НЕСМЕТЧЕННЫЕ ХАРАКТЕРИСТИКИ:")
-            for char in unmatched_characteristics:
-                logger.warning(f"  • {char}")
 
     def _analyze_attribute_types(self, processed_candidates: List[Dict]) -> Dict:
         """Анализ эффективности матчинга по типам атрибутов"""
