@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy import Text, ForeignKey
+from sqlalchemy import Text, ForeignKey, Column, Integer, Float
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -94,6 +94,19 @@ class TenderPositions(Base):
         cascade="all, delete-orphan"
     )
 
+class TenderPositionAttributesMatches(Base):
+    __tablename__ = 'tenders_position_attributes_matches'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tender_id: Mapped[Optional[int]]
+    tender_position_id: Mapped[int] = mapped_column(ForeignKey('tenders_positions.id'))
+    position_attr_id: Mapped[Optional[int]]
+    product_mongo_id: Mapped[Optional[int]]
+    position_attr_name: Mapped[Optional[str]] = mapped_column(Text)
+    position_attr_value: Mapped[Optional[str]] = mapped_column(Text)
+    position_attr_unit: Mapped[Optional[str]] = mapped_column(Text)
+    product_attr_name: Mapped[Optional[str]] = mapped_column(Text)
+    product_attr_value: Mapped[Optional[str]] = mapped_column(Text)
 
 class TenderPositionAttributes(Base):
     __tablename__ = 'tenders_position_attributes'
@@ -141,3 +154,15 @@ class Attachments(Base):
 
     # Relationship
     tender: Mapped["TenderInfo"] = relationship(back_populates="attachments")
+
+
+class Matches(Base):
+    __tablename__ = 'tender_matches'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tender_position_id = Column(Integer, ForeignKey('tenders_positions.id'))
+    product_id = Column(Integer)
+    match_score = Column(Integer)
+    max_match_score = Column(Integer)
+    percentage_match_score = Column(Float)
+
