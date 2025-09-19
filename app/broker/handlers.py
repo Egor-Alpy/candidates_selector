@@ -77,7 +77,7 @@ async def handle_tender_categorization(
             continue
 
         # Применяем shrinking к кандидатам
-        await shrink_service.shrink(candidates=es_candidates, position=position)
+        await shrink_service.shrink(candidates=es_candidates, position=position, pg_service=pg_service)
 
         # Добавить фильтрацию:
         min_points = len(position.attributes) / 2  # type: ignore
