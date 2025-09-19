@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         "INFO"  # Доступные уровни логирования - DEBUG, INFO, WARNING, ERROR, FATAL
     )
     LOG_FORMAT: str = (
-        "%(asctime).19s | %(levelname).3s | %(message)s"  # Формат отображения логов
+        "%(asctime).23s | %(levelname).3s | %(message)s"  # Формат отображения логов
     )
 
     # Настройка api (fastapi)
