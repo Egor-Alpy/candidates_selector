@@ -29,7 +29,6 @@ class UnitStandardizer:
             async with session.post(url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
-                    logger.info(result)
                     return result
                 else:
                     return {}
