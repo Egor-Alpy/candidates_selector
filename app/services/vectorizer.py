@@ -28,7 +28,7 @@ class SemanticMatcher:
                     url = f"{self.api_url}/api/v1/comparsion/strings"
                     payload = [string1, string2]
 
-                    async with session.post(url, json=payload) as response:
+                    async with session.post(url, json=payload, ssl=False) as response:
                         if response.status == 200:
                             result = await response.json()
                             return result.get("score", 0.0)
