@@ -34,13 +34,11 @@ async def handle_tender_categorization(
     es_service: ElasticSelector = Depends(get_service_es_selector),
     session: AsyncSession = Depends(get_session),
 ):
-    mongo_repo = MongoRepository()
-    trigrammer = Trigrammer(mongo_repo=mongo_repo)
+    # mongo_repo = MongoRepository()
+    # trigrammer = Trigrammer(mongo_repo=mongo_repo)
 
     # Исправлено: передаем все зависимости в shrink_service
-    shrink_service = Shrinker(
-        trigrammer=trigrammer,
-    )
+    shrink_service = Shrinker()
 
     logger.info(f"Получен тендер для мэтчинга: {tender_id}")
 

@@ -19,9 +19,7 @@ import asyncio
 class Shrinker:
     def __init__(
         self,
-        trigrammer: Optional[Trigrammer] = None,
     ):
-        self.trigrammer = trigrammer
         self.vectorizer = SemanticMatcher()
         self.attrs_sorter = AttrsStandardizer()
         self.unit_normalizer = UnitStandardizer()
