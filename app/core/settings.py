@@ -10,12 +10,8 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "1.0.0"
 
     # Настройка логирования
-    LOG_LEVEL: str = (
-        "INFO"  # Доступные уровни логирования - DEBUG, INFO, WARNING, ERROR, FATAL
-    )
-    LOG_FORMAT: str = (
-        "%(asctime).23s | %(levelname).3s | %(message)s"  # Формат отображения логов
-    )
+    LOG_LEVEL: str = "INFO"  # Доступные уровни логирования - DEBUG, INFO, WARNING, ERROR, FATAL
+    LOG_FORMAT: str = "%(asctime).19s | %(levelname).3s | %(message)s"
 
     # Настройка api (fastapi)
     API_HOST: str = "localhost"
@@ -32,20 +28,6 @@ class Settings(BaseSettings):
     SERVICE_LINK_ATTRS_STANDARDIZER: str = "http://localhost:8000"
     SERVICE_LINK_UNIT_STANDARDIZER: str = "http://localhost:8001"
     SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8081"
-
-    # Настройка подключения к MongoDB
-    MONGO_DB_HOST: str = "localhost"
-    MONGO_DB_PORT: int = 40001
-    MONGO_DB_USER: str = "parser"
-    MONGO_DB_PASS: str = "password"
-    MONGO_DB_NAME: str = "categorized_products"
-    MONGO_COLLECTION_NAME: str = "categorized_products"
-    MONGO_AUTHMECHANISM: str = "SCRAM-SHA-256"
-    MONGO_AUTHSOURCE: str = "admin"
-    MONGO_REPLICA_SET: str = "parser-mongodb"
-    MONGO_TLS: bool = True
-    MONGO_TLS_CA_FILE: str = "/Users/alpy/Downloads/_mongodb-ca-gitignore"
-    MONGO_DIRECT_CONNECTION: bool = False
 
     # Настройки RabbitMQ для FastStream
     RABBITMQ_HOST: str = 'localhost'
@@ -72,38 +54,6 @@ class Settings(BaseSettings):
     DB_EXPIRE_ON_COMMIT: bool = False
     DB_AUTOFLUSH: bool = False
     DB_AUTOCOMMIT: bool = False
-
-    # Получение ссылки для подключения к MongoDB
-    @property
-    def get_mongo_connection_link(self):
-        if self.MONGO_DB_USER and self.MONGO_DB_PASS:
-            # Базовая строка подключения
-            connection_string = (
-                f"mongodb://{self.MONGO_DB_USER}:{quote_plus(self.MONGO_DB_PASS)}@"
-                f"{self.MONGO_DB_HOST}:{self.MONGO_DB_PORT}/"
-            )
-
-            # Добавляем параметры
-            params = [f"authSource={self.MONGO_AUTHSOURCE}", f"authMechanism={self.MONGO_AUTHMECHANISM}"]
-
-            if self.MONGO_REPLICA_SET:
-                params.append(f"replicaSet={self.MONGO_REPLICA_SET}")
-
-            if self.MONGO_TLS:
-                params.append("tls=true")
-                if self.MONGO_TLS_CA_FILE:
-                    params.append(f"tlsCAFile={self.MONGO_TLS_CA_FILE}")
-
-            if not self.MONGO_DIRECT_CONNECTION and self.MONGO_REPLICA_SET:
-                # directConnection должно быть false при использовании replica set
-                params.append("directConnection=false")
-
-            # Соединяем все параметры
-            connection_string += "?" + "&".join(params)
-        else:
-            connection_string = f"mongodb://{self.MONGO_DB_HOST}:{self.MONGO_DB_PORT}"
-
-        return connection_string
 
     # Получение ссылки для подключения к ElasticSearch
     @property

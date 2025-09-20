@@ -10,7 +10,6 @@ from app.core.dependencies.services import get_tender_notifier, get_service_es_s
 from app.core.logger import get_logger
 from app.core.settings import settings
 from app.db.session import get_session
-from app.repository.mongo import MongoRepository
 from app.repository.postgres import PostgresRepository
 from app.services.es_selector import ElasticSelector
 from app.services.publisher_service import TenderNotifier
@@ -34,9 +33,6 @@ async def handle_tender_categorization(
     es_service: ElasticSelector = Depends(get_service_es_selector),
     session: AsyncSession = Depends(get_session),
 ):
-    # mongo_repo = MongoRepository()
-    # trigrammer = Trigrammer(mongo_repo=mongo_repo)
-
     # Исправлено: передаем все зависимости в shrink_service
     shrink_service = Shrinker()
 

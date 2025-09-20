@@ -3,7 +3,6 @@ from typing import List, Optional, Any, Set, Tuple, Dict
 from dataclasses import dataclass
 import re
 
-from app.repository.mongo import MongoRepository
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +10,8 @@ logger = logging.getLogger(__name__)
 class Trigrammer:
     """Сервис для создания триграмм"""
 
-    def __init__(self, mongo_repo: Optional[MongoRepository] = None):
-        self.mongo_repo = mongo_repo
+    def __init__(self):
+        pass
 
     def clean_text(self, text, separator: Optional[str] = ''):
         """
