@@ -46,9 +46,6 @@ async def handle_tender_categorization(
     # Исправлено: передаем все зависимости в shrink_service
     shrink_service = Shrinker(
         trigrammer=trigrammer,
-        vectorizer=vectorizer,
-        attrs_sorter=attrs_sorter,
-        unit_normalizer=unit_normalizer,
     )
 
     logger.info(f"Получен тендер для мэтчинга: {tender_id}")
@@ -77,7 +74,7 @@ async def handle_tender_categorization(
             continue
 
         # Применяем shrinking к кандидатам
-        await shrink_service.shrink(candidates=es_candidates, position=position, pg_service=pg_service)
+        await shrink_service.shrink(candidates=es_candidates, position=position)
 
         # Добавить фильтрацию:
         min_points = len(position.attributes) / 2  # type: ignore
