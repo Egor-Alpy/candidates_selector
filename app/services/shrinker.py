@@ -3,7 +3,9 @@ import time
 from typing import Optional, List, Dict
 
 from app.core.logger import get_logger
+from app.db.session import get_session
 from app.models.tenders import TenderPositions
+from app.repository.postgres import PostgresRepository
 from app.services.attrs_standardizer import AttrsStandardizer
 from app.services.trigrammer import Trigrammer
 from app.services.unit_standardizer import UnitStandardizer
@@ -11,21 +13,22 @@ from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
+import asyncio
+
 
 class Shrinker:
     def __init__(
         self,
         trigrammer: Optional[Trigrammer] = None,
-        vectorizer: Optional[SemanticMatcher] = None,
-        attrs_sorter: Optional[AttrsStandardizer] = None,
-        unit_normalizer: Optional[UnitStandardizer] = None,
     ):
         self.trigrammer = trigrammer
-        self.vectorizer = vectorizer
-        self.attrs_sorter = attrs_sorter
-        self.unit_normalizer = unit_normalizer
+        self.vectorizer = SemanticMatcher()
+        self.attrs_sorter = AttrsStandardizer()
+        self.unit_normalizer = UnitStandardizer()
 
-    async def shrink(self, candidates: dict, position: TenderPositions, pg_service=None):
+        self.semaphore = asyncio.Semaphore(5)
+
+    async def shrink(self, candidates: dict, position: TenderPositions):
         """Основной метод для оценки кандидатов"""
 
         # === ЭТАП 1: ПОДГОТОВКА ===
@@ -52,26 +55,25 @@ class Shrinker:
 
         # === ЭТАП 2: ОБРАБОТКА КАНДИДАТОВ ===
         ts = time.time()
-        logger.warning(f"\n🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов")
+        logger.warning(
+            f"\n🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов"
+        )
 
-        processed_candidates = []
+        # Создаем tasks для параллельного выполнения
+        tasks = [
+            self._process_with_semaphore(candidate, position_attrs, min_required_points)
+            for candidate in candidates["hits"]["hits"]
+        ]
 
-        for idx, candidate in enumerate(candidates["hits"]["hits"]):
-            logger.info(f"\n--- Кандидат {idx + 1}: {candidate['_source']['title']} ---")
+        # Выполняем все tasks параллельно
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            ts_cand = time.time()
-            result = await self._process_single_candidate(
-                candidate,
-                position_attrs,
-                min_required_points,
-            )
-
-            if result:
-                processed_candidates.append(result)
-
-            logger.critical(
-                f"time на обработку одного кандидата ТОТАЛ: {time.time()-ts_cand}"
-            )
+        # Фильтруем успешные результаты
+        processed_candidates = [
+            result
+            for result in results
+            if isinstance(result, dict) and result is not None
+        ]
 
         logger.critical(
             f"time на обработку всех атрибутов ТОТАЛ ОБЩИЙ: {time.time()-ts}"
@@ -82,9 +84,16 @@ class Shrinker:
             candidates,
             processed_candidates,
             position,
-            min_required_points,
-            pg_service=pg_service
+            min_required_points
         )
+
+    async def _process_with_semaphore(
+        self, candidate, position_attrs, min_required_points
+    ):
+        async with self.semaphore:
+            return await self._process_single_candidate(
+                candidate, position_attrs, min_required_points
+            )
 
     async def _parse_position_attributes(self, attributes) -> Dict:
         """Парсинг атрибутов позиции с группировкой по типам"""
@@ -995,7 +1004,6 @@ class Shrinker:
         processed_candidates: List[Dict],
         position: TenderPositions,
         min_required_points: int,
-        pg_service
     ):
         """Финальная обработка результатов"""
 
@@ -1048,12 +1056,24 @@ class Shrinker:
                 }
                 attributes_matches_data.append(match_data)
 
-        # Выполняем батчевые вставки
-        if tender_matches_data:
-            await pg_service.create_tender_matches_batch(tender_matches_data)
+        async with get_session() as fresh_session:
+            fresh_pg_service = PostgresRepository(fresh_session)
 
-        if attributes_matches_data:
-            await pg_service.create_tender_position_attribute_matches_bulk(attributes_matches_data)
+            try:
+                if tender_matches_data:
+                    await fresh_pg_service.create_tender_matches_batch(
+                        tender_matches_data
+                    )
+
+                if attributes_matches_data:
+                    await fresh_pg_service.create_tender_position_attribute_matches_bulk(
+                        attributes_matches_data
+                    )
+
+            except Exception as e:
+                logger.error(f"Database operation failed: {e}")
+                await fresh_session.rollback()
+                raise
 
         # Создаем расширенный отчет
         report = {

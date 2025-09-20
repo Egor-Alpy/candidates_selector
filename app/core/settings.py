@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     # Настройки RabbitMQ для FastStream
     RABBITMQ_HOST: str = 'localhost'
     RABBITMQ_PORT: int = 5672
-    RABBITMQ_USER: str = 'admin'
-    RABBITMQ_PASS: str = '5brXrRUhQy8Sl8gs'
+    RABBITMQ_USER: str = 'guest'
+    RABBITMQ_PASS: str = 'guest'
     RABBITMQ_VHOST: str = '/'
 
     # PostgreSQL Configuration

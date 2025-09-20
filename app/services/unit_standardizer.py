@@ -3,12 +3,13 @@ import logging
 import aiohttp
 
 from app.core.logger import get_logger
+from app.core.settings import settings
 
 logger = get_logger(name=__name__)
 
 
 class UnitStandardizer:
-    def __init__(self, api_url: str):
+    def __init__(self, api_url: str = settings.SERVICE_LINK_UNIT_STANDARDIZER):
         self.api_url = api_url
         self.session = None
 
