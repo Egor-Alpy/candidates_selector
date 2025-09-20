@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8081"
 
     # Кол-во одновременно обрабатываемых кандидатов
-    SHRINKER_SEMAPHORE_SIZE = 100
+    SHRINKER_SEMAPHORE_SIZE: int = 100
 
     # Настройки RabbitMQ для FastStream
     RABBITMQ_HOST: str = 'localhost'
