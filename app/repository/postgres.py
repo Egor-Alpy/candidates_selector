@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, text
 
 from app.core.logger import get_logger
-from app.db.session import get_session
 from app.models.tenders import TenderPositions, TenderPositionAttributesMatches, Matches
 
 logger = get_logger(name=__name__)
@@ -61,7 +60,7 @@ class PostgresRepository:
             await self.db.commit()
 
             rowcount = result.rowcount
-            logger.info(f"Успешно вставлено {rowcount} соответствий атрибутов")
+            logger.info(f"Успешно добавлено {rowcount} смэтченных атрибутов")
             return True
 
         except Exception as e:
@@ -120,7 +119,7 @@ class PostgresRepository:
             await self.db.commit()
 
             logger.info(
-                f"✅ Успешно создано {len(matches_objects)} соответствий тендера"
+                f"✅ Успешно добавлено {len(matches_objects)} смэтченных кандидатов"
             )
             return matches_objects
 

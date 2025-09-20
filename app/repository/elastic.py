@@ -207,6 +207,7 @@ class ElasticRepository:
             return 0
 
     async def make_query(self, index_name: str, body: dict):
+        """Сделайть простой запрос в эластик"""
         try:
             logger.debug(f"🔍 Index: {index_name}")
             logger.debug(

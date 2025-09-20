@@ -1,5 +1,6 @@
 from typing import Optional
 
+from app.core.settings import settings
 from app.models.tenders import TenderPositions
 
 
@@ -141,7 +142,7 @@ class ElasticQueries:
         return query
 
     @staticmethod
-    def get_query_v6(position: TenderPositions, size: Optional[int] = 2000):
+    def get_query_v6(position: TenderPositions, size: Optional[int] = settings.ES_CANDIDATES_QTY):
         """
         Поисковый запрос со СТРОГИМ соответствием категории и мягким поиском по названию
         """

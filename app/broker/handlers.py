@@ -12,13 +12,10 @@ from app.core.settings import settings
 from app.db.session import get_session
 from app.repository.mongo import MongoRepository
 from app.repository.postgres import PostgresRepository
-from app.services.attrs_standardizer import AttrsStandardizer
 from app.services.es_selector import ElasticSelector
 from app.services.publisher_service import TenderNotifier
 from app.services.shrinker import Shrinker
 from app.services.trigrammer import Trigrammer
-from app.services.unit_standardizer import UnitStandardizer
-from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
@@ -38,10 +35,7 @@ async def handle_tender_categorization(
     session: AsyncSession = Depends(get_session),
 ):
     mongo_repo = MongoRepository()
-    vectorizer = SemanticMatcher(api_url=settings.SERVICE_LINK_SEMANTIC_MATCHER)
     trigrammer = Trigrammer(mongo_repo=mongo_repo)
-    unit_normalizer = UnitStandardizer(api_url=settings.SERVICE_LINK_UNIT_STANDARDIZER)
-    attrs_sorter = AttrsStandardizer()
 
     # Исправлено: передаем все зависимости в shrink_service
     shrink_service = Shrinker(
@@ -62,6 +56,7 @@ async def handle_tender_categorization(
 
     ts_es = time.time()
     for position in positions:
+        logger.info(60 * '=')
         logger.info(f"Обрабатываем позицию: {position.title}")
 
         # Получаем кандидатов для позиции
@@ -94,9 +89,6 @@ async def handle_tender_categorization(
         }
 
         all_position_results.append(position_result)
-        logger.info(
-            f"Обработано кандидатов для позиции {position.title}: {len(es_candidates['hits']['hits'])}"
-        )
 
     # Сохраняем все результаты
     final_results = {
@@ -107,29 +99,13 @@ async def handle_tender_categorization(
         "results": all_position_results,
     }
 
-    # Сохраняем в файл для отладки
-    with open(f"matching_results_{tender_id}.json", "w", encoding="utf-8") as file:
-        json.dump(final_results, file, ensure_ascii=False, indent=2)
+    # # Сохраняем в файл для отладки
+    # with open(f"matching_results_{tender_id}.json", "w", encoding="utf-8") as file:
+    #     json.dump(final_results, file, ensure_ascii=False, indent=2)
 
-    # Здесь можно добавить сохранение результатов в БД или отправку в следующую очередь
-    # await save_matching_results_to_db(pg_service, final_results)
-    # await send_to_next_queue(final_results)
-
-    # Закрываем сессии сервисов
-    try:
-        await vectorizer.close()
-        await unit_normalizer.close()
-        await attrs_sorter.close()
-    except Exception as e:
-        logger.error(f"Ошибка при закрытии сессий: {e}")
 
     tr_es = time.time() - ts_es
 
-    logger.info(
-        f"Завершен мэтчинг для тендера {tender_id}. Обработано позиций: {len(positions)}"
-    )
+    logger.info(60 * '=')
+    logger.info(f"Завершен мэтчинг для тендера {tender_id}. Обработано позиций: {len(positions)}")
     logger.info(f'time_pg: {tr_pg} | time_es: {tr_es}')
-    logger.warning(f'Уходим в бесконечный сон, чтобы повторить прогон!!!')
-    while True:
-        time.sleep(10)
-    return final_results

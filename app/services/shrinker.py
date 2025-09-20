@@ -26,66 +26,61 @@ class Shrinker:
         self.attrs_sorter = AttrsStandardizer()
         self.unit_normalizer = UnitStandardizer()
 
-        self.semaphore = asyncio.Semaphore(5)
+        self.semaphore = asyncio.Semaphore(100)
 
     async def shrink(self, candidates: dict, position: TenderPositions):
         """Основной метод для оценки кандидатов"""
+        try:
+            # === ЭТАП 1: ПОДГОТОВКА ===
+            logger.info(f'')
+            logger.info("===== НАЧАЛО ОБРАБОТКИ ПОЗИЦИИ =====")
 
-        # === ЭТАП 1: ПОДГОТОВКА ===
-        logger.warning("=" * 60)
-        logger.warning("НАЧАЛО ОБРАБОТКИ ПОЗИЦИИ")
-        logger.warning("=" * 60)
+            position_max_points = len(position.attributes)
+            min_required_points = position_max_points // 2  # Половина от максимума
 
-        position_max_points = len(position.attributes)
-        min_required_points = position_max_points // 2  # Половина от максимума
+            logger.info(f"📋 Название позиции: {position.title}")
+            logger.info(f"📋 Категория позиции: {position.category}")
+            logger.info(f"🎯 Максимальные баллы: {position_max_points}")
+            logger.info(f"⚡ Минимум для прохода: {min_required_points}")
 
-        logger.info(f"📋 Название позиции: {position.title}")
-        logger.info(f"📋 Категория позиции: {position.category}")
-        logger.info(f"🎯 Максимальные баллы: {position_max_points}")
-        logger.info(f"⚡ Минимум для прохода: {min_required_points}")
+            # Парсим атрибуты позиции с группировкой
+            position_attrs = await self._parse_position_attributes(position.attributes)
 
-        ts = time.time()
-        # Парсим атрибуты позиции с группировкой
-        position_attrs = await self._parse_position_attributes(position.attributes)
-        logger.critical(f'time парсинга атрибутов позиции с группировкой: {time.time()-ts}')
+            if len(position_attrs.get('attrs', [])) == 0:
+                logger.warning("❌ Нет атрибутов для сравнения")
+                return
 
-        if len(position_attrs.get('attrs', [])) == 0:
-            logger.warning("❌ Нет атрибутов для сравнения")
-            return
+            # === ЭТАП 2: ОБРАБОТКА КАНДИДАТОВ ===
+            logger.info(
+                f"🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов"
+            )
 
-        # === ЭТАП 2: ОБРАБОТКА КАНДИДАТОВ ===
-        ts = time.time()
-        logger.warning(
-            f"\n🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов"
-        )
+            # Создаем tasks для параллельного выполнения
+            tasks = [
+                self._process_with_semaphore(candidate, position_attrs, min_required_points)
+                for candidate in candidates["hits"]["hits"]
+            ]
 
-        # Создаем tasks для параллельного выполнения
-        tasks = [
-            self._process_with_semaphore(candidate, position_attrs, min_required_points)
-            for candidate in candidates["hits"]["hits"]
-        ]
+            # Выполняем все tasks параллельно
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Выполняем все tasks параллельно
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Фильтруем успешные результаты
+            processed_candidates = [
+                result
+                for result in results
+                if isinstance(result, dict) and result is not None
+            ]
 
-        # Фильтруем успешные результаты
-        processed_candidates = [
-            result
-            for result in results
-            if isinstance(result, dict) and result is not None
-        ]
 
-        logger.critical(
-            f"time на обработку всех атрибутов ТОТАЛ ОБЩИЙ: {time.time()-ts}"
-        )
-
-        # === ЭТАП 3: ФИНАЛЬНАЯ ОБРАБОТКА ===
-        await self._finalize_results(
-            candidates,
-            processed_candidates,
-            position,
-            min_required_points
-        )
+            # === ЭТАП 3: ФИНАЛЬНАЯ ОБРАБОТКА ===
+            await self._finalize_results(
+                candidates,
+                processed_candidates,
+                position,
+                min_required_points
+            )
+        except Exception as e:
+            pass
 
     async def _process_with_semaphore(
         self, candidate, position_attrs, min_required_points
@@ -97,7 +92,7 @@ class Shrinker:
 
     async def _parse_position_attributes(self, attributes) -> Dict:
         """Парсинг атрибутов позиции с группировкой по типам"""
-        logger.info("\n📝 ПАРСИНГ АТРИБУТОВ ПОЗИЦИИ:")
+        logger.info("📝 ПАРСИНГ АТРИБУТОВ ПОЗИЦИИ:")
 
         # Инициализация групп
         attrs_data = {
@@ -105,7 +100,7 @@ class Shrinker:
         }
 
         for i, attr in enumerate(attributes):
-            logger.info(f"\n--- АТРИБУТ ПОЗИЦИИ {i+1}/{len(attributes)} ---")
+            logger.info(f"--- АТРИБУТ ПОЗИЦИИ {i+1}/{len(attributes)} ---")
 
             try:
                 parsed = None
@@ -113,9 +108,9 @@ class Shrinker:
                     # Распаршиваем характеристику позиции
                     unit = getattr(attr, "unit", "") or ""
                     raw_string = f"{attr.name}: {attr.value} {unit}".strip()
-                    logger.info(f"🔄 Raw request: {raw_string}")
+                    # logger.info(f"🔄 Raw request: {raw_string}")
                     parsed = await self.attrs_sorter.extract_attr_data(raw_string)
-                    logger.info(f"🔄 Raw response: {parsed}")
+                    # logger.info(f"🔄 Raw response: {parsed}")
                 except Exception as e:
                     logger.error(f"failed: {e}")
 
@@ -150,10 +145,9 @@ class Shrinker:
                 logger.error(f"Exception type: {type(e)}")
 
         # Логирование статистики позиции
-        logger.info(f"\n📊 ИТОГОВАЯ СТАТИСТИКА ПОЗИЦИИ:")
+        logger.info(f"📊 ИТОГОВАЯ СТАТИСТИКА ПОЗИЦИИ:")
         logger.info(f"📊 Всего атрибутов: {len(attributes)}")
         logger.info(f"📊 Успешно распаршено: {len(attrs_data['attrs'])}")
-        logger.info(f"📊 Статистика по типам:")
 
         return attrs_data
 
@@ -251,17 +245,14 @@ class Shrinker:
             "attribute_matching_details": {},
         }
 
-        logger.info(
-            f'🔎 Категория yandex: {candidate["_source"]["yandex_category"]} | '
-            f'Категория: {candidate["_source"]["category"]} | '
-            f"кол-во атрибутов: {len(candidate_attrs)}"
-        )
+        # logger.info(
+        #     f'🔎 Категория yandex: {candidate["_source"]["yandex_category"]} | '
+        #     f'Категория: {candidate["_source"]["category"]} | '
+        #     f"кол-во атрибутов: {len(candidate_attrs)}"
+        # )
 
-        ts_gropu = time.time()
         # Парсим атрибуты кандидата с группировкой
         candidate_grouped_attrs = await self._parse_candidate_attributes(candidate_attrs)
-
-        logger.critical(f'time группировка всех атрибутов одного кандидата: {time.time()-ts_gropu}')
 
         # Сохраняем детальную информацию
         result["attribute_matching_details"] = {
@@ -272,17 +263,15 @@ class Shrinker:
         # Проверяем каждый атрибут позиции
         for pos_attr in position_attrs:
             pos_type = pos_attr.get("type", "unknown_pos_type")
-            match_found = False # Todo: delete
+            match_found = False
+
             # Стратегия 2: Целенаправленное кросс-типовое сравнение
             if True:  # previously: if not match_found
-                ts_get_comp_attr_groups = time.time()
                 compatible_groups = self._get_compatible_attribute_groups(
                     pos_type, candidate_grouped_attrs
                 )
-                logger.critical(f'time получение совместимых групп {time.time()-ts_get_comp_attr_groups}')
 
                 for group_name, group_attrs in compatible_groups:
-                    ts_find_match = time.time()
                     match_found = await self._find_attribute_match_in_group(
                         pos_attr,
                         group_attrs,
@@ -292,15 +281,14 @@ class Shrinker:
                     )
                     if match_found:
                         break
-                logger.critical(f'time ищем в группе мэтч {time.time()-ts_find_match}')
 
             # Обновляем результат
             if match_found:
                 result["points"] += 1
-                logger.info(f"  ✅ +1 балл за: {pos_attr['name']}")
+                # logger.info(f"  ✅ +1 балл за: {pos_attr['name']}")
             else:
                 result["unmatched_attributes"].append(pos_attr['name'])
-                logger.info(f"  ❌ Не найдено: {pos_attr['name']}")
+                # logger.info(f"  ❌ Не найдено: {pos_attr['name']}")
 
             # Проверка раннего выхода
             remaining_attrs = (
@@ -311,23 +299,23 @@ class Shrinker:
             max_possible_points = result["points"] + remaining_attrs
 
             if max_possible_points < min_required_points:
-                logger.warning(
-                    f"  ⚡ Ранний выход: максимум возможных баллов {max_possible_points} < {min_required_points}"
-                )
+                # logger.warning(
+                #     f"  ⚡ Ранний выход: максимум возможных баллов {max_possible_points} < {min_required_points}"
+                # )
                 result["early_exit"] = True
                 break
 
         # Финальная оценка
-        logger.info(f"📈 Итоговый счет: {result['points']}/{result['max_points']}")
+        # logger.info(f"📈 Итоговый счет: {result['points']}/{result['max_points']}")
 
         # Фильтрация по минимуму баллов
         if result["points"] < min_required_points:
-            logger.warning(
-                f"❌ Кандидат отклонен: {result['points']} < {min_required_points}"
-            )
+            # logger.warning(
+            #     f"❌ Кандидат отклонен: {result['points']} < {min_required_points}"
+            # )
             return None
 
-        logger.info(f"✅ Кандидат принят!")
+        # logger.info(f"✅ Кандидат принят!")
 
         return result
 
@@ -351,9 +339,6 @@ class Shrinker:
             if group_attrs:
                 compatible_groups.append((target_type, group_attrs))
 
-        logger.info(
-            f"For {pos_type} found compatible groups: {[name for name, _ in compatible_groups]}"
-        )
         return compatible_groups
 
     async def _parse_candidate_attributes(
@@ -371,7 +356,6 @@ class Shrinker:
             "unknown": [],
             "all": [],
         }
-        logger.info(candidate_attrs)
 
         for attr in candidate_attrs:
             try:
@@ -444,9 +428,10 @@ class Shrinker:
                                     normalized_result.get("base_unit", unit)
                                 )
                             else:
-                                logger.warning(
-                                    f"⚠️ Unit normalization failed for {value} {unit}"
-                                )
+                                # logger.warning(
+                                #     f"⚠️ Unit normalization failed for {value} {unit}"
+                                # )
+                                pass
 
                         except Exception as e:
                             logger.error(f"💥 Error normalizing unit: {e}")
@@ -468,7 +453,7 @@ class Shrinker:
                 logger.error(f"Проблемный атрибут: {attr}")
 
         # Логирование статистики
-        logger.info(f"📊 Converted {len(grouped_attrs['all'])} candidate attributes:")
+        # logger.info(f"📊 Converted {len(grouped_attrs['all'])} candidate attributes:")
 
         return grouped_attrs
 
@@ -598,7 +583,6 @@ class Shrinker:
 
             # Проверка совместимости по названию
             name_similarity = await self._check_name_similarity(pos_name, cand_name)
-            logger.info(f'name_similarity: {name_similarity} - P: {pos_name} - C: {cand_name}')
 
             if name_similarity < 0.7:
                 continue
@@ -607,7 +591,6 @@ class Shrinker:
             value_match = await self._check_value_compatibility(
                 pos_attr, pos_type=pos_type, cand_parsed=cand_attr, cand_type=cand_type
             )
-            logger.warning(f'value_match: {value_match} - P: {pos_attr} - C: {cand_attr}')
 
             if value_match:
                 result["matched_attributes"].append(
@@ -799,7 +782,6 @@ class Shrinker:
             similarity = await self.vectorizer.compare_two_strings(
                 pos_value, cand_value
             )
-            logger.info(similarity >= 0.7)
             return similarity >= 0.7
 
         except Exception as e:
@@ -808,8 +790,8 @@ class Shrinker:
 
     async def _compare_numeric_values(self, pos_data: Dict, cand_data: Dict) -> bool:
         """Сравнение числовых значений с учетом единиц измерения"""
-        pos_value = pos_data.get("value", {}).get("value")
-        cand_value = cand_data.get("value", {}).get("value")
+        pos_value = float(pos_data.get("value", {}).get("value"))
+        cand_value = float(cand_data.get("value", {}).get("value"))
         pos_unit = pos_data.get("value", {}).get("unit")
         cand_unit = cand_data.get("value", {}).get("unit")
 
@@ -844,7 +826,7 @@ class Shrinker:
             return False
 
         except Exception as e:
-            logger.error(f"Ошибка сравнения числовых значений: {e}")
+            logger.error(f"Ошибка сравнения числовых значений position_value: {pos_value}, position_unit: {pos_unit} | candidate_value: {cand_value}, candidate_unit: {cand_unit} | error: {e}")
             return False
 
     async def _compare_ranges(self, pos_data: Dict, cand_data: Dict) -> bool:
@@ -852,9 +834,6 @@ class Shrinker:
         try:
             pos_range = pos_data.get("value", [])
             cand_range = cand_data.get("value", [])
-
-            logger.critical(f'pos_range: {pos_range}')
-            logger.critical(f'cand_range: {cand_range}')
 
             # Нормализация единиц для диапазонов
             pos_unit = pos_range[0].get("unit") if pos_range else None
@@ -918,7 +897,7 @@ class Shrinker:
     async def _value_in_range(value_data: Dict, range_data: Dict) -> bool:
         """Проверка входит ли значение в диапазон"""
         try:
-            value = value_data.get("value", {}).get("value")
+            value = float(value_data.get("value", {}).get("value"))
             range_vals = range_data.get("value", [])
 
             if len(range_vals) < 2:
@@ -967,7 +946,7 @@ class Shrinker:
             return start <= value <= end
 
         except Exception as e:
-            logger.error(f"Ошибка проверки значения в диапазоне: {e}")
+            logger.error(f"Ошибка проверки значения в диапазоне | value: {value} | range: {range_vals}: {e}")
             return False
 
     async def _compare_multiple_values(self, pos_data: Dict, cand_data: Dict) -> bool:
@@ -1006,14 +985,8 @@ class Shrinker:
         min_required_points: int,
     ):
         """Финальная обработка результатов"""
-
-        logger.warning("\n" + "=" * 60)
-        logger.warning("ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ")
-        logger.warning("=" * 60)
-
         processed_candidates.sort(key=lambda x: x["points"], reverse=True)
 
-        logger.info(f"🎯 Прошедших кандидатов: {len(processed_candidates)}")
 
         candidates["hits"]["hits"] = [
             item["candidate"] for item in processed_candidates
@@ -1023,8 +996,6 @@ class Shrinker:
         tender_matches_data = []
 
         for i, result in enumerate(processed_candidates):
-            logger.critical(result)
-            logger.critical(f'position: {position}')
 
             tender_position_id = position.id
             tender_position_max_points = result['attribute_matching_details']['total_position_attrs']
@@ -1055,11 +1026,11 @@ class Shrinker:
                     'product_attr_value': str(matched_char['original_product_attr_value']),
                 }
                 attributes_matches_data.append(match_data)
+        logger.info(f'Position {position.title} has been handled!')
 
-        async with get_session() as fresh_session:
-            fresh_pg_service = PostgresRepository(fresh_session)
-
+        async for fresh_session in get_session():
             try:
+                fresh_pg_service = PostgresRepository(fresh_session)
                 if tender_matches_data:
                     await fresh_pg_service.create_tender_matches_batch(
                         tender_matches_data
@@ -1097,17 +1068,11 @@ class Shrinker:
             ],
         }
 
-        report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
-        with open(report_filename, "w", encoding="utf-8") as f:
-            json.dump(report, f, ensure_ascii=False, indent=2)
+        # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
+        # with open(report_filename, "w", encoding="utf-8") as f:
+        #     json.dump(report, f, ensure_ascii=False, indent=2)  # Todo: dev env only!
 
-        logger.info(f"📄 Отчет сохранен: {report_filename}")
-
-        logger.info("\n🏆 ТОП КАНДИДАТОВ:")
-        for i, result in enumerate(processed_candidates[:5], 1):
-            logger.info(
-                f"{i}. {result['candidate']['_source']['title']} - {result['points']} баллов"
-            )
+        # logger.info(f"📄 Отчет сохранен: {report_filename}")
 
     def _analyze_attribute_types(self, processed_candidates: List[Dict]) -> Dict:
         """Анализ эффективности матчинга по типам атрибутов"""

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import aiohttp
@@ -21,23 +22,30 @@ class SemanticMatcher:
         return self.session
 
     async def compare_two_strings(self, string1: str, string2: str) -> float:
-        try:
-            session = await self._get_session()
-            url = f"{self.api_url}/api/v1/comparsion/strings"
+        for attempt in range(3):  # 3 попытки
+            try:
+                async with aiohttp.ClientSession() as session:
+                    url = f"{self.api_url}/api/v1/comparsion/strings"
+                    payload = [string1, string2]
 
-            payload = [string1, string2]
+                    async with session.post(url, json=payload) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            return result.get("score", 0.0)
+                        else:
+                            logger.info(response.status)
+                            return 0.0
 
-            async with session.post(url, json=payload) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return result.get('score', 0.0)
+            except Exception as e:
+                if attempt < 2:  # Если не последняя попытка
+                    await asyncio.sleep(1)  # Ждем 1 секунду
+                    continue
                 else:
-                    logger.info(response.status)
+                    logging.error(
+                        f"Ошибка при семантическом сравнении {string1} - {string2}: {e}"
+                    )
                     return 0.0
-
-        except Exception as e:
-            logging.error(f"Ошибка при вычленении сущностей из названия и значения атрибутов: {e}")
-            return 0.0
+        return 0.0
 
     async def close(self):
         if self.session and not self.session.closed:

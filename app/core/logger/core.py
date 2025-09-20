@@ -37,37 +37,37 @@ class ContextLogger:
         function_name = f'{inspect.currentframe().f_back.f_code.co_name}'
         module_name = os.path.basename(inspect.getmodule(frame).__file__)
 
-        colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "37")  # белый
-        self.logger.debug(colored_message)
+        # colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "37")  # белый
+        self.logger.debug(f"{module_name} | {function_name} | {message}")
 
     def info(self, message):
         frame = inspect.currentframe().f_back
         function_name = f'{inspect.currentframe().f_back.f_code.co_name}'
         module_name = os.path.basename(inspect.getmodule(frame).__file__)
 
-        colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "32")  # зеленый
-        self.logger.info(colored_message)
+#         colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "32")  # зеленый
+        self.logger.info(f"{module_name} | {function_name} | {message}")
 
     def warning(self, message):
         frame = inspect.currentframe().f_back
         function_name = f'{inspect.currentframe().f_back.f_code.co_name}'
         module_name = os.path.basename(inspect.getmodule(frame).__file__)
 
-        colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "33")  # желтый
-        self.logger.warning(colored_message)
+#         colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "33")  # желтый
+        self.logger.warning(f"{module_name} | {function_name} | {message}")
 
     def error(self, message):
         frame = inspect.currentframe().f_back
         function_name = f'{inspect.currentframe().f_back.f_code.co_name}'
         module_name = os.path.basename(inspect.getmodule(frame).__file__)
 
-        colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "31")  # красный
-        self.logger.error(colored_message)
+#         colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "31")  # красный
+        self.logger.error(f"{module_name} | {function_name} | {message}")
 
     def critical(self, message):
         frame = inspect.currentframe().f_back
         function_name = f'{inspect.currentframe().f_back.f_code.co_name}'
         module_name = os.path.basename(inspect.getmodule(frame).__file__)
 
-        colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "1;31")  # жирный красный
-        self.logger.critical(colored_message)
+#         colored_message = self._colorize(f"{module_name} | {function_name} | {message}", "1;31")  # жирный красный
+        self.logger.critical(f"{module_name} | {function_name} | {message}")

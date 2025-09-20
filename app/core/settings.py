@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     ES_HOST: str = "localhost"
     ES_PORT: int = 9200
     ES_INDEX: str = "products_testik_v3"
+    ES_CANDIDATES_QTY: int = 1000
     ES_MAX_RETRIES: int = 3
 
     # Внешние сервисы

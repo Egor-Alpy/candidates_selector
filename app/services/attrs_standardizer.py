@@ -21,17 +21,17 @@ class AttrsStandardizer:
 
     async def extract_attr_data(self, string_to_handle: str):
         try:
-            session = await self._get_session()
-            url = f"{self.api_url}/standardize"
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.api_url}/standardize"
 
-            payload = [string_to_handle]
+                payload = [string_to_handle]
 
-            async with session.post(url, json=payload) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return result
-                else:
-                    return None
+                async with session.post(url, json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result
+                    else:
+                        return None
 
         except Exception as e:
             logging.error(f"Ошибка при вычленении сущностей из названия и значения характеристики: {e}")
@@ -40,8 +40,3 @@ class AttrsStandardizer:
     async def close(self):
         if self.session and not self.session.closed:
             await self.session.close()
-
-
-attr_sorter = AttrsStandardizer()
-
-import asyncio

@@ -16,7 +16,7 @@ async def process_collection(
         trigrammer: Trigrammer = Depends(get_service_trigrammer),
         vectorizer: SemanticMatcher = Depends(get_service_vectorizer)
 ):
-    """Получение кандидатов из коллекции индекса ES"""
+    """Тестовый локальный эндпоинт для сравнения 2х строк по семантике и n-граммам ES"""
     try:
         ngram_similarity = await trigrammer.compare_two_strings(string1, string2)
         vector_similarity = await vectorizer.compare_two_strings(string1, string2)
