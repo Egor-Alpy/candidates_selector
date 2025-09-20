@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info(f"🛑 Остановка {settings.PROJECT_NAME}")
-    await broker.disconnect()
+    await broker.close()
 
 
 # Создание FastAPI приложения
