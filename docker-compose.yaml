@@ -4,7 +4,16 @@ services:
   app:
     build: .
     ports:
-      - "${API_PORT:-8000}:8002"
+      - "${API_PORT:-8000}:8000"
     env_file:
       - .env
+    environment:
+      RABBITMQ_HOST: host.docker.internal
+      ES_HOST: host.docker.internal
+      PG_HOST: host.docker.internal
+      SERVICE_LINK_ATTRS_STANDARDIZER: http://host.docker.internal:8000
+      SERVICE_LINK_UNIT_STANDARDIZER: http://host.docker.internal:8001
+      SERVICE_LINK_SEMANTIC_MATCHER: http://host.docker.internal:8081
     restart: unless-stopped
+    # Запускаем через main.py с API
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
