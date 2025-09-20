@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     SERVICE_LINK_UNIT_STANDARDIZER: str = "http://localhost:8001"
     SERVICE_LINK_SEMANTIC_MATCHER: str = "http://localhost:8081"
 
+    # Кол-во одновременно обрабатываемых кандидатов
+    SHRINKER_SEMAPHORE_SIZE = 20
+
     # Настройки RabbitMQ для FastStream
     RABBITMQ_HOST: str = 'localhost'
     RABBITMQ_PORT: int = 5672
@@ -49,7 +52,6 @@ class Settings(BaseSettings):
     PG_POOL_RECYCLE: int = 300
     PG_POOL_PRE_PING: bool = True
     PG_ECHO: bool = False
-
 
     # Database Session Configuration
     DB_EXPIRE_ON_COMMIT: bool = False
