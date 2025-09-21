@@ -1,4 +1,3 @@
-import json
 import time
 
 from faststream import Depends
@@ -13,8 +12,7 @@ from app.db.session import get_session
 from app.repository.postgres import PostgresRepository
 from app.services.es_selector import ElasticSelector
 from app.services.publisher_service import TenderNotifier
-from app.services.shrinker import Shrinker
-from app.services.trigrammer import Trigrammer
+from app.services.shrinker.shrinker_main import Shrinker
 
 logger = get_logger(name=__name__)
 
@@ -50,8 +48,6 @@ async def handle_tender_categorization(
 
     ts_es = time.time()
     for position in positions:
-        logger.info(60 * '=')
-        logger.info(f"Обрабатываем позицию: {position.title}")
 
         # Получаем кандидатов для позиции
         es_candidates = await es_service.find_candidates_for_rabbit(

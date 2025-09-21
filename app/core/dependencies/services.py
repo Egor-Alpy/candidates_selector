@@ -3,10 +3,9 @@ from fastapi import Depends, HTTPException, Request
 from app.broker.broker import broker
 from app.core.dependencies.repositories import get_es_repository
 from app.core.logger import get_logger
-from app.repository.elastic import ElasticRepository
 from app.services.es_selector import ElasticSelector
 from app.services.publisher_service import TenderNotifier
-from app.services.shrinker import Shrinker
+from app.services.shrinker.shrinker_main import Shrinker
 from app.services.trigrammer import Trigrammer
 from app.services.vectorizer import SemanticMatcher
 
