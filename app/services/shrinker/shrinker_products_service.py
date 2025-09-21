@@ -718,6 +718,7 @@ class ShrinkerProducts:
                 and range_unit
                 and hasattr(value_data, "unit_normalizer")
             ):
+
                 try:
                     if isinstance(value, (int, float)):
                         norm_result = await value_data.unit_normalizer.normalize_unit(
@@ -751,7 +752,7 @@ class ShrinkerProducts:
             return start <= value <= end
 
         except Exception as e:
-            logger.error(f"Ошибка проверки значения в диапазоне | value: {value} | range: {range_vals}: {e}")
+            logger.error(f"Ошибка проверки значения в диапазоне | value: {value_data} | range: {range_data}: {e}")
             return False
 
     async def _compare_multiple_values(self, pos_data: Dict, cand_data: Dict) -> bool:
