@@ -364,48 +364,65 @@ class ShrinkerProducts:
         candidate_attrs_group: List[Dict],
         result: Dict,
         match_type: str,
-        group_type: str
+        group_type: str,
     ) -> bool:
         """Поиск совпадения атрибута в конкретной группе кандидатов"""
         pos_type = pos_attr.get("type")
         pos_name = pos_attr.get("name", "")
-        max_name_similarity = 0.0
-        max_similarity_cand_attr = None
+        names_similarity_list = []
 
         for cand_attr in candidate_attrs_group:
             cand_name = cand_attr.get("name", "")
-
             # Проверка совместимости по названию
-            name_similarity = await self._check_name_similarity(pos_name, cand_name)
+            names_similarity_list.append([pos_name, cand_name])
 
-            # logger.info(
-            #     f'{name_similarity} | {pos_name} - {cand_name} | pos_name - cand_name'
-            # )
+        names_similarities = await self._check_names_similarity_batch(
+            names_similarity_list
+        )
 
-            if name_similarity > max_name_similarity:
-                max_name_similarity = name_similarity
-                max_similarity_cand_attr = cand_attr
+        # Эффективный поиск максимума за один проход
+        max_score = names_similarities[0]
+        max_index = 0
 
-        # if max_name_similarity < 0.7:
-        #     logger.info(f'- {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
-        # else:
-        #     logger.info(f'+ {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
+        for i in range(1, len(names_similarities)):
+            if names_similarities[i] > max_score:
+                max_score = names_similarities[i]
+                max_index = i
+
+        # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
+        max_similarity_cand_attr = candidate_attrs_group[max_index]
+        max_name_similarity = max_score
+
+        # Логирование
+        if max_name_similarity < 0.7:
+            logger.info(
+                f'- {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
+            )
+        else:
+            logger.info(
+                f'+ {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
+            )
 
         if max_name_similarity < 0.7:
             return False
+
         # Проверка совместимости по типу и значению
         value_match = await self._check_value_compatibility(
-            pos_attr, pos_type=pos_type, cand_parsed=max_similarity_cand_attr, cand_type=group_type
+            pos_attr,
+            pos_type=pos_type,
+            cand_parsed=max_similarity_cand_attr,
+            cand_type=group_type,
         )
+
         if value_match:
             result["matched_attributes"].append(
                 {
                     "position_attr_id": pos_attr.get("pg_id", None),
-                    "original_position_attr_name": pos_attr['original_name'],
-                    "original_position_attr_value": pos_attr['original_value'],
-                    "original_position_attr_unit": pos_attr['original_unit'],
-                    "original_product_attr_name": max_similarity_cand_attr['original_name'],
-                    "original_product_attr_value": max_similarity_cand_attr['original_value'],
+                    "original_position_attr_name": pos_attr["original_name"],
+                    "original_position_attr_value": pos_attr["original_value"],
+                    "original_position_attr_unit": pos_attr["original_unit"],
+                    "original_product_attr_name": max_similarity_cand_attr["original_name"],
+                    "original_product_attr_value": max_similarity_cand_attr["original_value"],
                     "name_similarity": max_name_similarity,
                     "match_type": f"{pos_attr.get('type', 'unknown')} vs {max_similarity_cand_attr.get('type', 'unknown')}",
                     "matching_strategy": match_type,
@@ -416,6 +433,17 @@ class ShrinkerProducts:
             return True
 
         return False
+
+    async def _check_names_similarity_batch(self, names_similarity_list):
+        try:
+            if not names_similarity_list:
+                return []
+
+            similarities = await self.vectorizer.compare_strings_batch(names_similarity_list)
+            return similarities
+        except Exception as e:
+            logger.error(f"Ошибка сравнения названий: {e}")
+            return []
 
     async def _check_name_similarity(self, name1: str, name2: str) -> float:
         """Проверка схожести названий атрибутов"""
