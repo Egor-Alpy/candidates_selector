@@ -139,4 +139,4 @@ class Trigrammer:
         # if bigrams_similarity < 0.5 or bi_grams_similarity < 0.5 or __bi_grams__similarity < 0.5 or trigrams_similarity < 0.5 or tri_grams_similarity < 0.5 or __tri_grams__similarity < 0.5:
         #     return {}
 
-        return bigrams_similarity + bi_grams_similarity + __bi_grams__similarity + trigrams_similarity + tri_grams_similarity + __tri_grams__similarity
+        return (bigrams_similarity + bi_grams_similarity + __bi_grams__similarity + trigrams_similarity + tri_grams_similarity + __tri_grams__similarity) / 6
