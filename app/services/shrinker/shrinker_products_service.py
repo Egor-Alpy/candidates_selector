@@ -370,11 +370,15 @@ class ShrinkerProducts:
         pos_type = pos_attr.get("type")
         pos_name = pos_attr.get("name", "")
         names_similarity_list = []
+        names_trigram_similarities = []
 
         for cand_attr in candidate_attrs_group:
             cand_name = cand_attr.get("name", "")
             # Проверка совместимости по названию
             names_similarity_list.append([pos_name, cand_name])
+            trigram_similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
+            names_trigram_similarities.append(trigram_similarity)
+
 
         names_similarities = await self._check_names_similarity_batch(
             names_similarity_list
@@ -385,26 +389,39 @@ class ShrinkerProducts:
         max_index = 0
 
         for i in range(1, len(names_similarities)):
-            if names_similarities[i] > max_score:
-                max_score = names_similarities[i]
+            names_total_similarities_score = names_similarities[i] + names_trigram_similarities[i]
+            if names_total_similarities_score > max_score:
+                max_score = names_total_similarities_score
                 max_index = i
 
         # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
         max_similarity_cand_attr = candidate_attrs_group[max_index]
-        max_name_similarity = max_score
 
         # Логирование
-        # if max_name_similarity < 0.7:
+        # if max_score < 0.7:
         #     logger.info(
-        #         f'- {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
+        #         f'- {max_score} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
         #     )
         # else:
         #     logger.info(
-        #         f'+ {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
+        #         f'+ {max_score} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
         #     )
 
-        if max_name_similarity < 0.7:
+        if max_score < 2.5:
             return False
+
+        elif max_score < 0.8:
+            logger.warning(
+                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            )
+        elif max_score < 0.9:
+            logger.error(
+                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            )
+        else:
+            logger.info(
+                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            )
 
         # Проверка совместимости по типу и значению
         value_match = await self._check_value_compatibility(
@@ -423,13 +440,18 @@ class ShrinkerProducts:
                     "original_position_attr_unit": pos_attr["original_unit"],
                     "original_product_attr_name": max_similarity_cand_attr["original_name"],
                     "original_product_attr_value": max_similarity_cand_attr["original_value"],
-                    "name_similarity": max_name_similarity,
+                    "name_similarity": max_score,
                     "match_type": f"{pos_attr.get('type', 'unknown')} vs {max_similarity_cand_attr.get('type', 'unknown')}",
                     "matching_strategy": match_type,
                     "position_attr_type": pos_attr.get("type", "unknown"),
                     "candidate_attr_type": max_similarity_cand_attr.get("type", "unknown"),
                 }
             )
+
+            logger.critical(
+                f'max_score: {max_score} | cand_value: {max_similarity_cand_attr["value"]} - pos_value: {pos_attr["original_value"]},{pos_attr["original_unit"]} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            )
+
             return True
 
         return False
@@ -515,6 +537,9 @@ class ShrinkerProducts:
 
             if not pos_name or not cand_name:
                 return False
+
+            if pos_name.lower() == cand_name.lower():
+                return True
 
             similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
             logger.debug(

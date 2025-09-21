@@ -106,22 +106,22 @@ class ElasticQueries:
                     "should": [
                         {"term": {"category.keyword": position.category}},
                         {"term": {"yandex_category.keyword": position.category}},
-                        # {
-                        #     "match": {
-                        #         "category": {
-                        #             "query": position.category,
-                        #             "minimum_should_match": "100%",
-                        #         }
-                        #     }
-                        # },
-                        # {
-                        #     "match": {
-                        #         "yandex_category": {
-                        #             "query": position.category,
-                        #             "minimum_should_match": "100%",
-                        #         }
-                        #     }
-                        # },
+                        {
+                            "match": {
+                                "category": {
+                                    "query": position.category,
+                                    "minimum_should_match": "100%",
+                                }
+                            }
+                        },
+                        {
+                            "match": {
+                                "yandex_category": {
+                                    "query": position.category,
+                                    "minimum_should_match": "100%",
+                                }
+                            }
+                        },
                     ],
                     "minimum_should_match": 1,
                 }

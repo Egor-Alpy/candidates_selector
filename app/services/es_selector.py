@@ -24,7 +24,7 @@ class ElasticSelector:
     async def find_candidates_for_rabbit(self, index_name: str, position: TenderPositions):
         """Поиск кандидатов"""
         try:
-            body = ElasticQueries.get_query_v6(
+            body = ElasticQueries.get_query_v5(
                 position=position
             )
             logger.info(f'body: {body}')
