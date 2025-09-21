@@ -378,18 +378,18 @@ class ShrinkerProducts:
             # Проверка совместимости по названию
             name_similarity = await self._check_name_similarity(pos_name, cand_name)
 
-            logger.info(
-                f'{name_similarity} | {pos_name} - {cand_name} | pos_name - cand_name'
-            )
+            # logger.info(
+            #     f'{name_similarity} | {pos_name} - {cand_name} | pos_name - cand_name'
+            # )
 
             if name_similarity > max_name_similarity:
                 max_name_similarity = name_similarity
                 max_similarity_cand_attr = cand_attr
 
-        if max_name_similarity < 0.7:
-            logger.info(f'- {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
-        else:
-            logger.info(f'+ {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
+        # if max_name_similarity < 0.7:
+        #     logger.info(f'- {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
+        # else:
+        #     logger.info(f'+ {max_name_similarity} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name')
 
         if max_name_similarity < 0.7:
             return False

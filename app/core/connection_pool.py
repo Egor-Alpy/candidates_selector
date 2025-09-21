@@ -25,8 +25,8 @@ class SimpleConnectionPool:
             ):
 
                 connector = aiohttp.TCPConnector(
-                    limit=30,  # Максимум соединений
-                    limit_per_host=15,  # На хост
+                    limit=100,  # Максимум соединений
+                    limit_per_host=30,  # На хост
                     keepalive_timeout=60,
                     enable_cleanup_closed=True,
                 )
