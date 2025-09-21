@@ -1,66 +1,33 @@
 import json
 from typing import Optional, Dict, Any, List
 
-from elasticsearch import AsyncElasticsearch
-
 from app.core.logger import get_logger
 from app.core.settings import settings
+from app.core.connection_pool import connection_pool
 
 logger = get_logger(name=__name__)
 
 
 class ElasticRepository:
-    """Расширенный репозиторий для работы с Elasticsearch"""
+    """Репозиторий для работы с Elasticsearch с пулом соединений"""
 
     def __init__(self):
-        self.client: Optional[AsyncElasticsearch] = self._get_client()
+        # Убираем создание клиента - используем пул соединений
+        pass
 
-    def _get_client(self) -> Optional[AsyncElasticsearch]:
-        """Подключение к Elasticsearch"""
-        try:
-            client = AsyncElasticsearch(
-                hosts=[settings.get_elastic_dsn],
-                max_retries=settings.ES_MAX_RETRIES,
-                retry_on_timeout=True,
-                timeout=300
-            )
-
-            logger.info("✅ Подключение к Elasticsearch установлено")
-            return client
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка подключения к Elasticsearch: {e}")
-            return None
-
-    def _connect_to_db(self):
-        """Подключение к бд"""
-        if not self.is_connected():
-            logger.error(f"❌ Ошибка подключения к БД MongoDB: {self.client} is not connected!")
-            return False
-        try:
-            database = self.client[settings.MONGO_DB_NAME]
-            logger.info(f"✅ Подключение к MongoDB установлено: {settings.MONGO_DB_NAME}")
-            return database
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка подключения к БД MongoDB: {e}")
-            return None
+    async def _get_client(self):
+        """Получение клиента Elasticsearch из пула соединений"""
+        return await connection_pool.get_es_client()
 
     async def disconnect(self):
-        """Закрытие подключения"""
-        if self.client:
-            try:
-                await self.client.close()
-                logger.info("🔌 Подключение к Elasticsearch закрыто")
-            except Exception as e:
-                logger.error(f"❌ Ошибка при закрытии подключения: {e}")
+        """Закрытие подключения - теперь управляется пулом"""
+        logger.info("🔌 Elasticsearch disconnect called (managed by connection pool)")
 
     async def is_connected(self) -> bool:
         """Проверка подключения"""
-        if not self.client:
-            return False
         try:
-            await self.client.info()
+            client = await self._get_client()
+            await client.info()
             return True
         except Exception as e:
             logger.error(f"❌ Ошибка проверки подключения: {e}")
@@ -70,11 +37,9 @@ class ElasticRepository:
         """Индексация документа"""
         try:
             doc_id = document.get('title')
-            if not self.client:
-                logger.error("❌ Elasticsearch client не инициализирован")
-                return False
+            client = await self._get_client()
 
-            response = await self.client.index(
+            response = await client.index(
                 index=index_name,
                 body=document
             )
@@ -101,9 +66,7 @@ class ElasticRepository:
     ) -> Optional[Dict[str, Any]]:
         """Поиск документов с возможностью сортировки"""
         try:
-            if not self.client:
-                logger.error("❌ Elasticsearch client не инициализирован")
-                return None
+            client = await self._get_client()
 
             # Формируем тело запроса
             body = {
@@ -115,7 +78,7 @@ class ElasticRepository:
             if sort:
                 body["sort"] = sort
 
-            response = await self.client.search(
+            response = await client.search(
                 index=index_name,
                 body=body
             )
@@ -129,7 +92,7 @@ class ElasticRepository:
     async def get_last_document_by_field(
             self,
             index_name: str,
-            field="indexed_at"  # ← Изменили по умолчанию
+            field="indexed_at"
     ) -> Optional[Dict[str, Any]]:
         """Получение последнего документа по указанному полю"""
         try:
@@ -161,10 +124,8 @@ class ElasticRepository:
     async def index_exists(self, index_name: str) -> bool:
         """Проверка существования индекса"""
         try:
-            if not self.client:
-                return False
-
-            return await self.client.indices.exists(index=index_name)
+            client = await self._get_client()
+            return await client.indices.exists(index=index_name)
 
         except Exception as e:
             logger.error(f"❌ Error checking index existence {index_name}: {e}")
@@ -173,15 +134,14 @@ class ElasticRepository:
     async def create_index(self, index_name: str, body: Dict[str, Any] = None) -> bool:
         """Создание индекса с маппингом"""
         try:
-            if not self.client:
-                return False
+            client = await self._get_client()
 
             # Проверяем, существует ли индекс
             if await self.index_exists(index_name):
                 logger.info(f"📋 Index {index_name} already exists")
                 return True
 
-            await self.client.indices.create(
+            await client.indices.create(
                 index=index_name,
                 body=body
             )
@@ -196,10 +156,8 @@ class ElasticRepository:
     async def get_document_count(self, index_name: str) -> int:
         """Получение количества документов в индексе"""
         try:
-            if not self.client:
-                return 0
-
-            response = await self.client.count(index=index_name)
+            client = await self._get_client()
+            response = await client.count(index=index_name)
             return response.get("count", 0)
 
         except Exception as e:
@@ -207,14 +165,15 @@ class ElasticRepository:
             return 0
 
     async def make_query(self, index_name: str, body: dict):
-        """Сделайть простой запрос в эластик"""
+        """Сделать простой запрос в эластик"""
         try:
             logger.debug(f"🔍 Index: {index_name}")
             logger.debug(
                 f"🔍 Query body: {json.dumps(body, ensure_ascii=False, indent=2)}"
             )
 
-            response = await self.client.search(index=index_name, body=body)
+            client = await self._get_client()
+            response = await client.search(index=index_name, body=body)
 
             total_hits = response.body["hits"]["total"]
             logger.debug(f"📊 Total hits: {total_hits}")

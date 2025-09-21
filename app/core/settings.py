@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     PG_DB_NAME: str = 'app'
 
     # PostgreSQL Pool Configuration
-    PG_POOL_SIZE: int = 5
-    PG_MAX_OVERFLOW: int = 10
+    PG_POOL_SIZE: int = 15
+    PG_MAX_OVERFLOW: int = 25
     PG_POOL_RECYCLE: int = 300
     PG_POOL_PRE_PING: bool = True
     PG_ECHO: bool = False

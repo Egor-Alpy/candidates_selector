@@ -7,8 +7,9 @@ from app.api.router import router
 from app.broker.broker import broker
 from app.core.logger import get_logger
 from app.core.settings import settings
+
+from app.core.connection_pool import connection_pool
 import app.broker.handlers
-from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
 
@@ -19,11 +20,17 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚀 Запуск {settings.PROJECT_NAME} сервиса...")
 
     await broker.start()
+    logger.info("✅ RabbitMQ broker started")
+
     yield
 
     # Shutdown
     logger.info(f"🛑 Остановка {settings.PROJECT_NAME}")
+
     await broker.close()
+    await connection_pool.close_all()  # Добавить эту строку
+
+    logger.info("✅ Все соединения закрыты")
 
 
 # Создание FastAPI приложения
