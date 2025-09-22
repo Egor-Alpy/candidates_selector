@@ -407,7 +407,7 @@ class ShrinkerProducts:
         #         f'+ {max_score} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
         #     )
 
-        if max_score < 0.8:
+        if max_score < 0.73:
             return False
 
         elif max_score < 0.8:
