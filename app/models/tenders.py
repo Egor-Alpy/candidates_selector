@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy import Text, ForeignKey, Column, Integer, Float
+from sqlalchemy import Text, ForeignKey, Column, Integer, Float, DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -19,6 +19,10 @@ class TenderInfo(Base):
     financing_source: Mapped[Optional[str]] = mapped_column(Text)
     amount: Mapped[Optional[int]]
     currency: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(),
+                                                 onupdate=func.now())
+    processed_positions: Mapped[Optional[int]] = mapped_column(default=0)
 
     # Relationships
     delivery_info: Mapped[List["DeliveryInfo"]] = relationship(
@@ -165,4 +169,3 @@ class Matches(Base):
     match_score = Column(Integer)
     max_match_score = Column(Integer)
     percentage_match_score = Column(Float)
-

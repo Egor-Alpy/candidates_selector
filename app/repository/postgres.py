@@ -1,13 +1,18 @@
-from typing import Optional, List, Sequence, Dict, Any
+from typing import Optional, List, Sequence, Dict, Any, Union
 
 from fastapi import Depends
-from sqlalchemy import insert
+from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, text
 
 from app.core.logger import get_logger
-from app.models.tenders import TenderPositions, TenderPositionAttributesMatches, Matches
+from app.models.tenders import (
+    TenderPositions,
+    TenderPositionAttributesMatches,
+    Matches,
+    TenderInfo,
+)
 
 logger = get_logger(name=__name__)
 
@@ -126,4 +131,28 @@ class PostgresRepository:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Ошибка батчевого создания соответствий тендера: {e}")
+            return None
+
+
+    async def increment_processed_positions(self, tender_id: int) -> Union[int, None]:
+        """Увеличивает поле processed_positions на 1 для указанного тендера"""
+        try:
+            stmt = (
+                update(TenderInfo)
+                .where(TenderInfo.id == tender_id)
+                .values(processed_positions=TenderInfo.processed_positions + 1)
+                .returning(TenderInfo.processed_positions)
+            )
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+
+            new_value = result.scalar()
+            logger.info(f"📊 Тендер {tender_id}: processed_positions = {new_value}")
+            return new_value
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(
+                f"Ошибка увеличения processed_positions для тендера {tender_id}: {e}"
+            )
             return None

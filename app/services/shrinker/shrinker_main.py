@@ -148,6 +148,7 @@ class Shrinker:
                     await fresh_pg_service.create_tender_matches_batch(
                         tender_matches_data
                     )
+                    await fresh_pg_service.increment_processed_positions(tender_id=position.tender_id)
 
                 if attributes_matches_data:
                     await fresh_pg_service.create_tender_position_attribute_matches_bulk(
