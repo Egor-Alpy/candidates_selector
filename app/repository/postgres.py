@@ -40,6 +40,7 @@ class PostgresRepository:
                 select(TenderPositions)
                 .options(selectinload(TenderPositions.attributes))
                 .where(TenderPositions.tender_id == tender_id)
+                .order_by(TenderPositions.tender_position.asc().nulls_last())
             )
 
             result = await self.db.execute(stmt)
