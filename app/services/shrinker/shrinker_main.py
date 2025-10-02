@@ -37,7 +37,7 @@ class Shrinker:
         try:
             # ЭТАП 1: ПОДГОТОВКА
             position_max_points = len(position.attributes)
-            min_required_points = position_max_points // 2
+            min_required_points = position_max_points * settings.CANDIDATES_TRASHOLD_SCORE
 
             logger.info(
                 f'\n'
