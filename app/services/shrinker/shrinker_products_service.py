@@ -379,7 +379,6 @@ class ShrinkerProducts:
             trigram_similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
             names_trigram_similarities.append(trigram_similarity)
 
-
         names_similarities = await self._check_names_similarity_batch(
             names_similarity_list
         )
@@ -541,7 +540,8 @@ class ShrinkerProducts:
             if pos_name.lower() == cand_name.lower():
                 return True
 
-            similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
+            similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
+            # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
             logger.debug(
                 f"Boolean names comparison: '{pos_name}' vs '{cand_name}' = {similarity}"
             )
@@ -563,9 +563,8 @@ class ShrinkerProducts:
             if not bool_name or not other_name:
                 return False
 
-            similarity = await self.vectorizer.compare_two_strings(
-                bool_name, other_name
-            )
+            similarity = await self.trigrammer.compare_two_strings(bool_name, other_name)
+            # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
             logger.debug(
                 f"Boolean vs other type names: '{bool_name}' vs '{other_name}' = {similarity}"
             )
@@ -637,9 +636,8 @@ class ShrinkerProducts:
             pos_value = str(pos_data.get("value", {}).get("value", ""))
             cand_value = str(cand_data.get("value", {}).get("value", ""))
 
-            similarity = await self.vectorizer.compare_two_strings(
-                pos_value, cand_value
-            )
+            similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
+            # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
             return similarity >= 0.7
 
         except Exception as e:
@@ -824,9 +822,10 @@ class ShrinkerProducts:
                 for cand_val in cand_values:
                     cand_val_str = str(cand_val.get("value", cand_val)).lower()
 
-                    similarity = await self.vectorizer.compare_two_strings(
+                    similarity = await self.trigrammer.compare_two_strings(
                         pos_val_str, cand_val_str
                     )
+                    # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
                     if similarity >= 0.8:
                         return True
 
