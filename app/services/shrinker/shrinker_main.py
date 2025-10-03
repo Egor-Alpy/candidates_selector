@@ -54,7 +54,6 @@ class Shrinker:
                 logger.warning("❌ Нет атрибутов для сравнения")
                 return
 
-
             # ЭТАП 2: ОБРАБОТКА КАНДИДАТОВ
             logger.info(f"🔍 Начинаем обработку {len(candidates['hits']['hits'])} кандидатов")
 
@@ -71,7 +70,6 @@ class Shrinker:
                 result for result in results
                 if isinstance(result, dict) and result is not None
             ]
-
 
             # ЭТАП 3: ФИНАЛЬНАЯ ОБРАБОТКА
             await self._finalize_results(
@@ -149,12 +147,15 @@ class Shrinker:
                         await fresh_pg_service.create_tender_matches_batch(
                             tender_matches_data
                         )
-                        await fresh_pg_service.increment_processed_positions(tender_id=position.tender_id)
 
                     if attributes_matches_data:
                         await fresh_pg_service.create_tender_position_attribute_matches_bulk(
                             attributes_matches_data
                         )
+
+                    await fresh_pg_service.increment_processed_positions(
+                        tender_id=position.tender_id
+                    )
 
                 except Exception as e:
                     logger.error(f"Database operation failed: {e}")
