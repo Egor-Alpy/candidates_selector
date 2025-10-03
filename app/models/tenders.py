@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy import Text, ForeignKey, Column, Integer, Float, DateTime, func
+from sqlalchemy import Text, ForeignKey, Column, Integer, Float, DateTime, func, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -11,6 +11,9 @@ class TenderInfo(Base):
     __tablename__ = 'tenders_info'
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[Optional[str]] = mapped_column(UUID)
+    user_id: Mapped[Optional[str]] = mapped_column(UUID)
+    external_tender_id: Mapped[Optional[str]] = mapped_column(UUID)
     tender_name: Mapped[Optional[str]] = mapped_column(Text)
     tender_number: Mapped[Optional[str]] = mapped_column(Text)
     customer_name: Mapped[Optional[str]] = mapped_column(Text)
@@ -22,7 +25,7 @@ class TenderInfo(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(),
                                                  onupdate=func.now())
-    processed_positions: Mapped[Optional[int]] = mapped_column(default=0)
+    processed_positions: Mapped[Optional[int]] = mapped_column(server_default='0', nullable=False, default=0)
 
     # Relationships
     delivery_info: Mapped[List["DeliveryInfo"]] = relationship(

@@ -52,6 +52,19 @@ class PostgresRepository:
             logger.error(f"Ошибка получения позиций тендера {tender_id}: {e}")
             return None
 
+    async def get_company_id_by_tender(self, tender_id: int) -> Optional[str]:
+        """Получение company_id по tender_id"""
+        try:
+            stmt = select(TenderInfo.company_id).where(TenderInfo.id == tender_id)
+            result = await self.db.execute(stmt)
+            company_id = result.scalar_one_or_none()
+
+            return company_id
+
+        except Exception as e:
+            logger.error(f"Ошибка получения company_id для тендера {tender_id}: {e}")
+            return None
+
     async def create_tender_position_attribute_matches_bulk(
         self, matches_data: List[Dict[str, Any]]
     ) -> int | None:
@@ -133,7 +146,6 @@ class PostgresRepository:
             await self.db.rollback()
             logger.error(f"Ошибка батчевого создания соответствий тендера: {e}")
             return None
-
 
     async def increment_processed_positions(self, tender_id: int) -> Union[int, None]:
         """Увеличивает поле processed_positions на 1 для указанного тендера"""

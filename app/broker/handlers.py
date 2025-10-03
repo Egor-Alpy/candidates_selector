@@ -40,6 +40,9 @@ async def handle_tender_categorization(
 
     pg_service = PostgresRepository(session)
     positions = await pg_service.get_tender_positions_selectinload(tender_id)
+    company_id: str = await pg_service.get_company_id_by_tender(tender_id)
+
+    logger.info(f"TENDER_ID: {tender_id} | COMPANY_ID: {company_id}")
 
     tr_pg = time.time() - ts_pg
 
