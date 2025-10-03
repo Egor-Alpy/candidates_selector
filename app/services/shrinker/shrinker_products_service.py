@@ -418,9 +418,10 @@ class ShrinkerProducts:
                 f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
             )
         else:
-            logger.info(
-                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            )
+            # logger.info(
+            #     f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            # )
+            pass
 
         # Проверка совместимости по типу и значению
         value_match = await self._check_value_compatibility(
@@ -753,57 +754,98 @@ class ShrinkerProducts:
     async def _value_in_range(value_data: Dict, range_data: Dict) -> bool:
         """Проверка входит ли значение в диапазон"""
         try:
-            value = float(value_data.get("value", {}).get("value"))
+            # Получаем значение и нормализуем его (заменяем запятую на точку)
+            raw_value = value_data.get("value", {}).get("value")
+            if isinstance(raw_value, str):
+                raw_value = raw_value.replace(",", ".")
+
+            try:
+                value = float(raw_value)
+            except (ValueError, TypeError) as e:
+                logger.error(
+                    f"Не удалось преобразовать значение '{raw_value}' в число: {e}"
+                )
+                return False
+
             range_vals = range_data.get("value", [])
 
             if len(range_vals) < 2:
                 return False
 
-            # Нормализация единиц для значения в диапазоне
+            # Получаем единицы измерения
             value_unit = value_data.get("value", {}).get("unit")
             range_unit = range_vals[0].get("unit") if range_vals else None
 
-            if (
-                value_unit != range_unit
-                and value_unit
-                and range_unit
-                and hasattr(value_data, "unit_normalizer")
-            ):
-
+            # Нормализация единиц если они различаются
+            if value_unit and range_unit and value_unit != range_unit:
                 try:
+                    # Создаем временный экземпляр UnitStandardizer для нормализации
+                    from app.services.unit_standardizer import UnitStandardizer
+
+                    unit_normalizer = UnitStandardizer()
+
+                    # Нормализуем значение
                     if isinstance(value, (int, float)):
-                        norm_result = await value_data.unit_normalizer.normalize_unit(
+                        norm_result = await unit_normalizer.normalize_unit(
                             str(value), value_unit
                         )
                         if norm_result.get("success"):
-                            value = norm_result["normalized_value"]
+                            value = norm_result["base_value"]
+                            value_unit = norm_result["base_unit"]
 
+                    # Нормализуем диапазон
                     for i, item in enumerate(range_vals):
                         if isinstance(item.get("value"), (int, float)):
-                            norm_result = (
-                                await value_data.unit_normalizer.normalize_unit(
-                                    str(item["value"]), range_unit
-                                )
+                            norm_result = await unit_normalizer.normalize_unit(
+                                str(item["value"]), range_unit
                             )
                             if norm_result.get("success"):
                                 range_vals[i] = {
-                                    "value": norm_result["normalized_value"],
-                                    "unit": norm_result["normalized_unit"],
+                                    "value": norm_result["base_value"],
+                                    "unit": norm_result["base_unit"],
                                 }
                 except Exception as e:
-                    logger.error(f"Error normalizing value-range units: {e}")
+                    logger.error(f"Ошибка нормализации единиц измерения: {e}")
 
+            # Если у значения нет единицы, а у диапазона есть - пытаемся привести
+            elif not value_unit and range_unit:
+                logger.warning(
+                    f"У значения {value} нет единицы измерения, но у диапазона есть ({range_unit}). "
+                    f"Предполагаем, что значение уже в базовых единицах."
+                )
+
+            # Получаем границы диапазона
             start = range_vals[0].get("value")
             end = range_vals[1].get("value")
 
+            # Обрабатываем бесконечности
             if start == "_inf-":
                 start = float("-inf")
+            elif isinstance(start, str):
+                start = float(start.replace(",", "."))
+            else:
+                start = float(start)
+
             if end == "_inf+":
                 end = float("inf")
-            return start <= value <= end
+            elif isinstance(end, str):
+                end = float(end.replace(",", "."))
+            else:
+                end = float(end)
+
+            # Проверяем вхождение в диапазон
+            is_in_range = start <= value <= end
+
+            if not is_in_range:
+                logger.debug(f"Значение {value} не входит в диапазон [{start}, {end}]")
+
+            return is_in_range
 
         except Exception as e:
-            logger.error(f"Ошибка проверки значения в диапазоне | value: {value_data} | range: {range_data}: {e}")
+            logger.error(
+                f"Ошибка проверки значения в диапазоне | "
+                f"value: {value_data} | range: {range_data}: {e}"
+            )
             return False
 
     async def _compare_multiple_values(self, pos_data: Dict, cand_data: Dict) -> bool:
