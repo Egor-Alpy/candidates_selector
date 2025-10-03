@@ -47,6 +47,9 @@ async def handle_tender_categorization(
     all_position_results = []
 
     ts_es = time.time()
+
+    logger.info(f'для обработки пришло позиций: {len(positions)}')
+
     for position in positions:
 
         # Получаем кандидатов для позиции
@@ -54,9 +57,9 @@ async def handle_tender_categorization(
             index_name=settings.ES_INDEX, position=position
         )
 
-        if not es_candidates or not es_candidates.get("hits", {}).get("hits"):
-            logger.warning(f"Нет кандидатов для позиции {position.id}")
-            continue
+        # if not es_candidates or not es_candidates.get("hits", {}).get("hits"):
+        #     logger.warning(f"Нет кандидатов для позиции {position.id}")
+        #     continue
 
         # Применяем shrinking к кандидатам
         await shrink_service.shrink(candidates=es_candidates, position=position)
