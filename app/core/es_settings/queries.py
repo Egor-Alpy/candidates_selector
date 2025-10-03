@@ -142,9 +142,11 @@ class ElasticQueries:
         return query
 
     @staticmethod
-    def get_query_v6(position: TenderPositions, size: Optional[int] = settings.ES_CANDIDATES_QTY):
+    def get_query_v6(
+        position: TenderPositions, size: Optional[int] = settings.ES_CANDIDATES_QTY
+    ):
         """
-        Поисковый запрос со СТРОГИМ соответствием категории и мягким поиском по названию
+        Поисковый запрос со СТРОГИМ соответствием категории и мягким поиском по названию и атрибутам
         """
         positions_demands = []
         from app.core.logger import get_logger
@@ -169,6 +171,45 @@ class ElasticQueries:
                     }
                 }
             )
+
+        # Поиск атрибутов в названиях и описаниях товаров
+        for attribute in position.attributes:
+            # Ищем значение атрибута в названии и описании товара
+            if attribute.value:
+                positions_demands.append(
+                    {
+                        "multi_match": {
+                            "query": attribute.value,
+                            "fields": [
+                                "title^3",  # поиск в названии товара
+                                "title.ngram^2",
+                                "description^1",  # поиск в описании товара
+                                "description.ngram^0.5",
+                            ],
+                            "type": "best_fields",
+                            "fuzziness": "1",
+                            "minimum_should_match": "70%",
+                        }
+                    }
+                )
+            # Ищем название атрибута в названии и описании товара
+            if attribute.name:
+                positions_demands.append(
+                    {
+                        "multi_match": {
+                            "query": attribute.name,
+                            "fields": [
+                                "title^2",
+                                "title.ngram^1.5",
+                                "description^0.8",
+                                "description.ngram^0.4",
+                            ],
+                            "type": "best_fields",
+                            "fuzziness": "1",
+                            "minimum_should_match": "80%",
+                        }
+                    }
+                )
 
         # Если нет условий поиска, добавим универсальный
         if not positions_demands:
