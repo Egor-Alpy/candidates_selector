@@ -646,8 +646,14 @@ class ShrinkerProducts:
 
     async def _compare_numeric_values(self, pos_data: Dict, cand_data: Dict) -> bool:
         """Сравнение числовых значений с учетом единиц измерения"""
-        pos_value = float(pos_data.get("value", {}).get("value"))
-        cand_value = float(cand_data.get("value", {}).get("value"))
+        raw_pos_value = pos_data.get("value", {}).get("value")
+        raw_pos_value = raw_pos_value.replace(",", ".")
+
+        raw_cand_value = cand_data.get("value", {}).get("value")
+        raw_cand_value = raw_cand_value.replace(",", ".")
+
+        pos_value = float(raw_pos_value)
+        cand_value = float(raw_cand_value)
         pos_unit = pos_data.get("value", {}).get("unit")
         cand_unit = cand_data.get("value", {}).get("unit")
 
