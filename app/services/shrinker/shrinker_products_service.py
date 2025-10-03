@@ -638,7 +638,7 @@ class ShrinkerProducts:
 
             similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
             # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
-            return similarity >= 0.7
+            return similarity >= 0.85
 
         except Exception as e:
             logger.error(f"Ошибка сравнения строковых значений: {e}")
