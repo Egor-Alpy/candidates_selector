@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "1.0.0"
 
     # Настройка мэтчера
-    CANDIDATES_TRASHOLD_SCORE = 0.7  # процент смэтченных характеристик по достижению которого кандидат будет сохранен в бд
+    CANDIDATES_TRASHOLD_SCORE: float = 0.7  # процент смэтченных характеристик по достижению которого кандидат будет сохранен в бд
 
     # Настройка логирования
     LOG_LEVEL: str = "INFO"  # Доступные уровни логирования - DEBUG, INFO, WARNING, ERROR, FATAL
