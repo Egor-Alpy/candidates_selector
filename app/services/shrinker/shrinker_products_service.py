@@ -1,18 +1,12 @@
 from typing import Optional, List, Dict
 
 from app.core.logger import get_logger
-from app.core.settings import settings
-from app.db.session import get_session
-from app.models.tenders import TenderPositions
-from app.repository.postgres import PostgresRepository
 from app.services.attrs_standardizer import AttrsStandardizer
 from app.services.trigrammer import Trigrammer
 from app.services.unit_standardizer import UnitStandardizer
 from app.services.vectorizer import SemanticMatcher
 
 logger = get_logger(name=__name__)
-
-import asyncio
 
 
 class ShrinkerProducts:
