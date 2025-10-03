@@ -143,6 +143,11 @@ class Shrinker:
             async for fresh_session in get_session():
                 try:
                     fresh_pg_service = PostgresRepository(fresh_session)
+
+                    await fresh_pg_service.increment_processed_positions(
+                        tender_id=position.tender_id
+                    )
+
                     if tender_matches_data:
                         await fresh_pg_service.create_tender_matches_batch(
                             tender_matches_data
@@ -153,9 +158,6 @@ class Shrinker:
                             attributes_matches_data
                         )
 
-                    await fresh_pg_service.increment_processed_positions(
-                        tender_id=position.tender_id
-                    )
 
                 except Exception as e:
                     logger.error(f"Database operation failed: {e}")
