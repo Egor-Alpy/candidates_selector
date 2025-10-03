@@ -99,94 +99,97 @@ class Shrinker:
         min_required_points: int,
     ):
         """Финальная обработка результатов"""
-        processed_candidates.sort(key=lambda x: x["points"], reverse=True)
+        try:
+            processed_candidates.sort(key=lambda x: x["points"], reverse=True)
 
-        candidates["hits"]["hits"] = [
-            item["candidate"] for item in processed_candidates
-        ]
+            candidates["hits"]["hits"] = [
+                item["candidate"] for item in processed_candidates
+            ]
 
-        attributes_matches_data = []
-        tender_matches_data = []
+            attributes_matches_data = []
+            tender_matches_data = []
 
-        for i, result in enumerate(processed_candidates):
+            for i, result in enumerate(processed_candidates):
 
-            tender_position_id = position.id
-            tender_position_max_points = result['attribute_matching_details']['total_position_attrs']
-            tender_position_score = result.get("points")
-            tender_position_percentage_match_score = round(tender_position_score / tender_position_max_points * 100, 1)
-            product_mongo_id = result['candidate']['_source']['id']
+                tender_position_id = position.id
+                tender_position_max_points = result['attribute_matching_details']['total_position_attrs']
+                tender_position_score = result.get("points")
+                tender_position_percentage_match_score = round(tender_position_score / tender_position_max_points * 100, 1)
+                product_mongo_id = result['candidate']['_source']['id']
 
-            # Данные для основного соответствия
-            tender_match_data = {
-                "tender_position_id": tender_position_id,
-                "product_id": product_mongo_id,
-                "match_score": tender_position_score,
-                "max_match_score": tender_position_max_points,
-                "percentage_match_score": tender_position_percentage_match_score,
+                # Данные для основного соответствия
+                tender_match_data = {
+                    "tender_position_id": tender_position_id,
+                    "product_id": product_mongo_id,
+                    "match_score": tender_position_score,
+                    "max_match_score": tender_position_max_points,
+                    "percentage_match_score": tender_position_percentage_match_score,
+                }
+                tender_matches_data.append(tender_match_data)
+
+                for matched_char in result['matched_attributes']:
+                    match_data = {
+                        'tender_id': position.tender_id,
+                        'tender_position_id': tender_position_id,
+                        'product_mongo_id': product_mongo_id,
+                        'position_attr_id': matched_char['position_attr_id'],
+                        'position_attr_name': matched_char['original_position_attr_name'],
+                        'position_attr_value': matched_char['original_position_attr_value'],
+                        'position_attr_unit': matched_char.get('original_position_attr_unit'),
+                        'product_attr_name': matched_char['original_product_attr_name'],
+                        'product_attr_value': str(matched_char['original_product_attr_value']),
+                    }
+                    attributes_matches_data.append(match_data)
+            logger.info(f'Position {position.title} has been handled!')
+
+            async for fresh_session in get_session():
+                try:
+                    fresh_pg_service = PostgresRepository(fresh_session)
+                    if tender_matches_data:
+                        await fresh_pg_service.create_tender_matches_batch(
+                            tender_matches_data
+                        )
+                        await fresh_pg_service.increment_processed_positions(tender_id=position.tender_id)
+
+                    if attributes_matches_data:
+                        await fresh_pg_service.create_tender_position_attribute_matches_bulk(
+                            attributes_matches_data
+                        )
+
+                except Exception as e:
+                    logger.error(f"Database operation failed: {e}")
+                    await fresh_session.rollback()
+                    raise
+
+            # Создаем расширенный отчет
+            report = {
+                "position_title": position.title,
+                "total_candidates_processed": len(processed_candidates),
+                "min_required_points": min_required_points,
+                "max_possible_points": len(position.attributes),
+                "attribute_type_analysis": self._analyze_attribute_types(
+                    processed_candidates
+                ),
+                "top_candidates": [
+                    {
+                        "candidate_mongo_id": result["candidate_mongo_id"],
+                        "title": result["candidate"]["_source"]["title"],
+                        "points": result["points"],
+                        "matched_attributes": result["matched_attributes"],
+                        "unmatched_attributes": result["unmatched_attributes"],
+                        "attribute_matching_details": result["attribute_matching_details"],
+                    }
+                    for result in processed_candidates
+                ],
             }
-            tender_matches_data.append(tender_match_data)
 
-            for matched_char in result['matched_attributes']:
-                match_data = {
-                    'tender_id': position.tender_id,
-                    'tender_position_id': tender_position_id,
-                    'product_mongo_id': product_mongo_id,
-                    'position_attr_id': matched_char['position_attr_id'],
-                    'position_attr_name': matched_char['original_position_attr_name'],
-                    'position_attr_value': matched_char['original_position_attr_value'],
-                    'position_attr_unit': matched_char.get('original_position_attr_unit'),
-                    'product_attr_name': matched_char['original_product_attr_name'],
-                    'product_attr_value': str(matched_char['original_product_attr_value']),
-                }
-                attributes_matches_data.append(match_data)
-        logger.info(f'Position {position.title} has been handled!')
+            # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
+            # with open(report_filename, "w", encoding="utf-8") as f:
+            #     json.dump(report, f, ensure_ascii=False, indent=2)  # Todo: dev env only!
 
-        async for fresh_session in get_session():
-            try:
-                fresh_pg_service = PostgresRepository(fresh_session)
-                if tender_matches_data:
-                    await fresh_pg_service.create_tender_matches_batch(
-                        tender_matches_data
-                    )
-                    await fresh_pg_service.increment_processed_positions(tender_id=position.tender_id)
-
-                if attributes_matches_data:
-                    await fresh_pg_service.create_tender_position_attribute_matches_bulk(
-                        attributes_matches_data
-                    )
-
-            except Exception as e:
-                logger.error(f"Database operation failed: {e}")
-                await fresh_session.rollback()
-                raise
-
-        # Создаем расширенный отчет
-        report = {
-            "position_title": position.title,
-            "total_candidates_processed": len(processed_candidates),
-            "min_required_points": min_required_points,
-            "max_possible_points": len(position.attributes),
-            "attribute_type_analysis": self._analyze_attribute_types(
-                processed_candidates
-            ),
-            "top_candidates": [
-                {
-                    "candidate_mongo_id": result["candidate_mongo_id"],
-                    "title": result["candidate"]["_source"]["title"],
-                    "points": result["points"],
-                    "matched_attributes": result["matched_attributes"],
-                    "unmatched_attributes": result["unmatched_attributes"],
-                    "attribute_matching_details": result["attribute_matching_details"],
-                }
-                for result in processed_candidates
-            ],
-        }
-
-        # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
-        # with open(report_filename, "w", encoding="utf-8") as f:
-        #     json.dump(report, f, ensure_ascii=False, indent=2)  # Todo: dev env only!
-
-        # logger.info(f"📄 Отчет сохранен: {report_filename}")
+            # logger.info(f"📄 Отчет сохранен: {report_filename}")
+        except Exception as e:
+            logger.error(e)
 
     def _analyze_attribute_types(self, processed_candidates: List[Dict]) -> Dict:
         """Анализ эффективности матчинга по типам атрибутов"""
