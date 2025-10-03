@@ -753,7 +753,10 @@ class ShrinkerProducts:
     async def _value_in_range(value_data: Dict, range_data: Dict) -> bool:
         """Проверка входит ли значение в диапазон"""
         try:
-            value = float(value_data.get("value", {}).get("value"))
+            raw_value = value_data.get("value", {}).get("value")
+            raw_value = raw_value.replace(",", ".")
+
+            value = float(raw_value)
             range_vals = range_data.get("value", [])
 
             if len(range_vals) < 2:
