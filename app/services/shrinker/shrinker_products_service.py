@@ -36,21 +36,13 @@ class ShrinkerProducts:
             "candidate": candidate,
             "candidate_mongo_id": candidate_mongo_id,
             "points": 0,
-            "max_points": len(position_attrs),
             "matched_attributes": [],
             "unmatched_attributes": [],
             "early_exit": False,
-            "attribute_matching_details": {},
         }
 
         # Парсим атрибуты кандидата с группировкой
         candidate_grouped_attrs = await self._parse_candidate_attributes(candidate_attrs)
-
-        # Сохраняем детальную информацию
-        result["attribute_matching_details"] = {
-            "total_position_attrs": len(position_attrs),
-            "total_candidate_attrs": len(candidate_grouped_attrs["all"]),
-        }
 
         # Проверяем каждый атрибут позиции
         for pos_attr in position_attrs:
@@ -100,6 +92,8 @@ class ShrinkerProducts:
         # Финальная оценка
         # logger.info(f"📈 Итоговый счет: {result['points']}/{result['max_points']}")
 
+        logger.info(f"Результат мэтчинга одной опзиции result: {result}")
+
         # Фильтрация по минимуму баллов
         if result["points"] < min_required_points:
             # logger.warning(
@@ -108,6 +102,7 @@ class ShrinkerProducts:
             return None
 
         # logger.info(f"✅ Кандидат принят!")
+
 
         return result
 
@@ -394,6 +389,7 @@ class ShrinkerProducts:
         if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
             return False
 
+
         # Проверка совместимости по типу и значению
         value_match = await self._check_value_compatibility(
             pos_attr,
@@ -518,7 +514,7 @@ class ShrinkerProducts:
                 f"Boolean names comparison: '{pos_name}' vs '{cand_name}' = {similarity}"
             )
 
-            return similarity >= 0.7
+            return similarity >= settings.THRESHOLD_VALUE_MATCH
 
         except Exception as e:
             logger.error(f"Ошибка сравнения названий булевых атрибутов: {e}")
@@ -541,7 +537,7 @@ class ShrinkerProducts:
                 f"Boolean vs other type names: '{bool_name}' vs '{other_name}' = {similarity}"
             )
 
-            return similarity >= 0.7
+            return similarity >= settings.THRESHOLD_VALUE_MATCH
 
         except Exception as e:
             logger.error(f"Ошибка кросс-типового сравнения с boolean: {e}")
@@ -610,7 +606,7 @@ class ShrinkerProducts:
 
             similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
             # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
-            return similarity >= 0.85
+            return similarity >= settings.THRESHOLD_VALUE_MATCH
 
         except Exception as e:
             logger.error(f"Ошибка сравнения строковых значений: {e}")
@@ -811,7 +807,7 @@ class ShrinkerProducts:
                         pos_val_str, cand_val_str
                     )
                     # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
-                    if similarity >= 0.8:
+                    if similarity >= settings.THRESHOLD_VALUE_MATCH:
                         return True
 
             return False

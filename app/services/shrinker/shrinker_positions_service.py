@@ -7,8 +7,6 @@ from app.services.unit_standardizer import UnitStandardizer
 
 logger = get_logger(name=__name__)
 
-import asyncio
-
 
 class ShrinkerPositions:
     def __init__(self):
@@ -18,6 +16,7 @@ class ShrinkerPositions:
     async def parse_position_attributes(self, attributes) -> Dict:
         """Парсинг атрибутов позиции с группировкой по типам"""
         logger.info("Этап 1/3: ПАРСИНГ АТРИБУТОВ ПОЗИЦИИ:")
+        logger.info(f"на вход получаем attributes позиции: {attributes}")
 
         # Инициализация групп
         attrs_data = {"attrs": []}
@@ -32,6 +31,9 @@ class ShrinkerPositions:
                     unit = getattr(attr, "unit", "") or ""
                     raw_string = f"{attr.name}: {attr.value} {unit}".strip()
                     parsed = await self.attrs_sorter.extract_attr_data(raw_string)
+
+                    logger.info(f"1 | распаршиваем характеристику позиции\nunit: {unit}\nraw_string: {raw_string}\nparsed: {parsed}")
+
                 except Exception as e:
                     logger.error(f"failed: {e}")
 
