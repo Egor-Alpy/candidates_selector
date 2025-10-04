@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict
 
 from app.core.logger import get_logger
+from app.core.settings import settings
 from app.services.attrs_standardizer import AttrsStandardizer
 from app.services.trigrammer import Trigrammer
 from app.services.unit_standardizer import UnitStandardizer
@@ -390,31 +391,8 @@ class ShrinkerProducts:
         # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
         max_similarity_cand_attr = candidate_attrs_group[max_index]
 
-        # Логирование
-        # if max_score < 0.7:
-        #     logger.info(
-        #         f'- {max_score} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
-        #     )
-        # else:
-        #     logger.info(
-        #         f'+ {max_score} | {pos_name} - {max_similarity_cand_attr.get("name", "--")} | pos_name - cand_name'
-        #     )
-
-        if max_score < 0.73:
+        if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
             return False
-
-        elif max_score < 0.8:
-            logger.warning(
-                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            )
-        elif max_score < 0.9:
-            logger.error(
-                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            )
-        else:
-            logger.info(
-                f'max_score: {max_score} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            )
 
         # Проверка совместимости по типу и значению
         value_match = await self._check_value_compatibility(

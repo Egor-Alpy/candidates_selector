@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     # Настройка мэтчера
     CANDIDATES_TRASHOLD_SCORE: float = 0.7  # процент смэтченных характеристик по достижению которого кандидат будет сохранен в бд
 
+    THRESHOLD_ATTRIBUTE_MATCH: float = 0.73  # Порог мэтчинга названий характеристик
+
     # Настройка логирования
     LOG_LEVEL: str = "INFO"  # Доступные уровни логирования - DEBUG, INFO, WARNING, ERROR, FATAL
     LOG_FORMAT: str = "%(asctime).19s | %(levelname).3s | %(message)s"
