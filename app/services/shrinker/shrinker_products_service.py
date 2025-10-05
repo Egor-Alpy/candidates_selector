@@ -89,7 +89,7 @@ class ShrinkerProducts:
         # Финальная оценка
         # logger.info(f"📈 Итоговый счет: {result['points']}/{result['max_points']}")
 
-        logger.info(f"Результат мэтчинга одного кандидата result: {result}")
+        # logger.info(f"Результат мэтчинга одного кандидата result: {result}")
 
         # Фильтрация по минимуму баллов
         if result["points"] < min_required_points:
@@ -412,9 +412,9 @@ class ShrinkerProducts:
                 }
             )
 
-            logger.critical(
-                f'max_score: {max_score} | cand_value: {max_similarity_cand_attr["value"]} - pos_value: {pos_attr["original_value"]},{pos_attr["original_unit"]} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            )
+            # logger.critical(
+            #     f'max_score: {max_score} | cand_value: {max_similarity_cand_attr["value"]} - pos_value: {pos_attr["original_value"]},{pos_attr["original_unit"]} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
+            # )
 
             return True
 
