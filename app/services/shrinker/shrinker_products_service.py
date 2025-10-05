@@ -49,22 +49,19 @@ class ShrinkerProducts:
             pos_type = pos_attr.get("type", "unknown_pos_type")
             match_found = False
 
-            # Стратегия 2: Целенаправленное кросс-типовое сравнение
-            if True:  # previously: if not match_found
-                compatible_groups = self._get_compatible_attribute_groups(
-                    pos_type, candidate_grouped_attrs
+            compatible_groups = self._get_compatible_attribute_groups(
+                pos_type, candidate_grouped_attrs
+            )
+            for group_name, group_attrs in compatible_groups:
+                match_found = await self._find_attribute_match_in_group(
+                    pos_attr,
+                    group_attrs,
+                    result,
+                    f"cross_type_match_{pos_type}_vs_{group_name}",
+                    group_type=group_name
                 )
-
-                for group_name, group_attrs in compatible_groups:
-                    match_found = await self._find_attribute_match_in_group(
-                        pos_attr,
-                        group_attrs,
-                        result,
-                        f"cross_type_match_{pos_type}_vs_{group_name}",
-                        group_type=group_name
-                    )
-                    if match_found:
-                        break
+                if match_found:
+                    break
 
             # Обновляем результат
             if match_found:
@@ -92,7 +89,7 @@ class ShrinkerProducts:
         # Финальная оценка
         # logger.info(f"📈 Итоговый счет: {result['points']}/{result['max_points']}")
 
-        logger.info(f"Результат мэтчинга одной опзиции result: {result}")
+        logger.info(f"Результат мэтчинга одного кандидата result: {result}")
 
         # Фильтрация по минимуму баллов
         if result["points"] < min_required_points:
