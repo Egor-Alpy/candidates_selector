@@ -110,9 +110,9 @@ class Shrinker:
             tender_matches_data = []
 
             for i, result in enumerate(processed_candidates):
-
                 tender_position_id = position.id
-                tender_position_max_points = result['attribute_matching_details']['total_position_attrs']
+                logger.warning(result)
+                tender_position_max_points = len(position.attributes)
                 tender_position_score = result.get("points")
                 tender_position_percentage_match_score = round(tender_position_score / tender_position_max_points * 100, 1)
                 product_mongo_id = result['candidate']['_source']['id']
@@ -140,7 +140,7 @@ class Shrinker:
                         'product_attr_value': str(matched_char['original_product_attr_value']),
                     }
                     attributes_matches_data.append(match_data)
-            logger.info(f'Position {position.title} has been handled!')
+            logger.info(f'Position {position.title} has been handled! Products matches: {len(processed_candidates)}')
 
             async for fresh_session in get_session():
                 try:
@@ -167,26 +167,6 @@ class Shrinker:
                     raise
 
             # Создаем расширенный отчет
-            report = {
-                "position_title": position.title,
-                "total_candidates_processed": len(processed_candidates),
-                "min_required_points": min_required_points,
-                "max_possible_points": len(position.attributes),
-                "attribute_type_analysis": self._analyze_attribute_types(
-                    processed_candidates
-                ),
-                "top_candidates": [
-                    {
-                        "candidate_mongo_id": result["candidate_mongo_id"],
-                        "title": result["candidate"]["_source"]["title"],
-                        "points": result["points"],
-                        "matched_attributes": result["matched_attributes"],
-                        "unmatched_attributes": result["unmatched_attributes"],
-                        "attribute_matching_details": result["attribute_matching_details"],
-                    }
-                    for result in processed_candidates
-                ],
-            }
 
             # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
             # with open(report_filename, "w", encoding="utf-8") as f:
