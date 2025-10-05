@@ -49,9 +49,8 @@ class ShrinkerProducts:
             pos_type = pos_attr.get("type", "unknown_pos_type")
             match_found = False
 
-            compatible_groups = self._get_compatible_attribute_groups(
-                pos_type, candidate_grouped_attrs
-            )
+            compatible_groups = self._get_compatible_attribute_groups(pos_type, candidate_grouped_attrs)
+
             for group_name, group_attrs in compatible_groups:
                 match_found = await self._find_attribute_match_in_group(
                     pos_attr,
@@ -99,7 +98,6 @@ class ShrinkerProducts:
             return None
 
         # logger.info(f"✅ Кандидат принят!")
-
 
         return result
 
@@ -358,8 +356,21 @@ class ShrinkerProducts:
         pos_name = pos_attr.get("name", "")
         names_similarity_list = []
         names_trigram_similarities = []
+        candidate_attrs_group_with_matches_values = []
 
         for cand_attr in candidate_attrs_group:
+            cand_value = cand_attr.get("value", "")
+            # Проверка совместимости по типу и значению
+            value_match = await self._check_value_compatibility(
+                pos_attr,
+                pos_type=pos_type,
+                cand_parsed=cand_attr,
+                cand_type=group_type,
+            )
+            if value_match:
+                candidate_attrs_group_with_matches_values.append(cand_attr)
+
+        for cand_attr in candidate_attrs_group_with_matches_values:
             cand_name = cand_attr.get("name", "")
             # Проверка совместимости по названию
             names_similarity_list.append([pos_name, cand_name])
@@ -381,21 +392,12 @@ class ShrinkerProducts:
                 max_index = i
 
         # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
-        max_similarity_cand_attr = candidate_attrs_group[max_index]
+        max_similarity_cand_attr = candidate_attrs_group_with_matches_values[max_index]
 
         if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
             return False
 
-
-        # Проверка совместимости по типу и значению
-        value_match = await self._check_value_compatibility(
-            pos_attr,
-            pos_type=pos_type,
-            cand_parsed=max_similarity_cand_attr,
-            cand_type=group_type,
-        )
-
-        if value_match:
+        if max_similarity_cand_attr:
             result["matched_attributes"].append(
                 {
                     "position_attr_id": pos_attr.get("pg_id", None),
