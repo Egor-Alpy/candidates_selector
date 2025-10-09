@@ -15,14 +15,13 @@ class ShrinkerPositions:
 
     async def parse_position_attributes(self, attributes) -> Dict:
         """Парсинг атрибутов позиции с группировкой по типам"""
-        logger.info("Этап 1/3: ПАРСИНГ АТРИБУТОВ ПОЗИЦИИ:")
-        logger.info(f"на вход получаем attributes позиции: {attributes}")
+        logger.info("--- Этап 1/3: ПАРСИНГ АТРИБУТОВ ПОЗИЦИИ:")
 
         # Инициализация групп
         attrs_data = {"attrs": []}
 
         for i, attr in enumerate(attributes):
-            logger.info(f"--- АТРИБУТ ПОЗИЦИИ {i+1}/{len(attributes)} ---")
+            logger.info(f"- АТРИБУТ ПОЗИЦИИ {i+1}/{len(attributes)}")
 
             try:
                 parsed = None
@@ -32,7 +31,8 @@ class ShrinkerPositions:
                     raw_string = f"{attr.name}: {attr.value} {unit}".strip()
                     parsed = await self.attrs_sorter.extract_attr_data(raw_string)
 
-                    logger.info(f"1 | распаршиваем характеристику позиции\nunit: {unit}\nraw_string: {raw_string}\nparsed: {parsed}")
+                    logger.info(f"ИСХОДНЫЕ ДАННЫЕ | unit: '{unit}' | raw_string: '{raw_string}'")
+                    logger.info(f"РАСПАРШЕННЫЕ ДАННЫЕ | '{parsed}'")
 
                 except Exception as e:
                     logger.error(f"failed: {e}")
@@ -57,20 +57,16 @@ class ShrinkerPositions:
                     normalized_parsed['pg_id'] = attr.id
                     normalized_parsed['type'] = final_type
                     normalized_parsed = await self._standardize_units_and_values(final_type=final_type, parsed=parsed, normalized_parsed=normalized_parsed)
-                    logger.info(f'🔄 Parsed response: {normalized_parsed}')
 
                     attrs_data["attrs"].append(normalized_parsed)
                 else:
-                    logger.warning(f"❌ Final parsed result: {parsed} | {attr.name}, {attr.value}")
+                    logger.warning(f"❌ Final parsed result: '{parsed}' | '{attr.name}', '{attr.value}'")
 
             except Exception as e:
                 logger.error(f"CRITICAL ERROR for '{attr.name}': {e}")
                 logger.error(f"Exception type: {type(e)}")
 
-        # Логирование статистики позиции
-        logger.info(f"\nИтоговая статистика позиции:\n"
-                    f"Всего атрибутов: {len(attributes)}\n"
-                    f"Успешно распаршено: {len(attrs_data['attrs'])}\n")
+        logger.info(f"--- Этап 1/3 ЗАВЕРШЕН: успешной распаршено {len(attrs_data['attrs'])}/{len(attributes)}")
 
         return attrs_data
 

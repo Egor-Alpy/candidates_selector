@@ -79,7 +79,6 @@ class PostgresRepository:
             await self.db.commit()
 
             rowcount = result.rowcount
-            logger.info(f"Успешно добавлено {rowcount} смэтченных атрибутов")
             return True
 
         except Exception as e:
@@ -137,9 +136,6 @@ class PostgresRepository:
             self.db.add_all(matches_objects)
             await self.db.commit()
 
-            logger.info(
-                f"✅ Успешно добавлено {len(matches_objects)} смэтченных кандидатов"
-            )
             return matches_objects
 
         except Exception as e:
@@ -160,7 +156,6 @@ class PostgresRepository:
             await self.db.commit()
 
             new_value = result.scalar()
-            logger.info(f"📊 Тендер {tender_id}: processed_positions = {new_value}")
             return new_value
 
         except Exception as e:

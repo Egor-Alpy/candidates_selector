@@ -36,7 +36,7 @@ class SimpleConnectionPool:
                 )
 
                 self._http_sessions[service_name] = session
-                logger.info(f"✅ Created HTTP session for {service_name}")
+                # logger.info(f"✅ Created HTTP session for {service_name}")
 
             return self._http_sessions[service_name]
 

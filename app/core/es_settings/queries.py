@@ -136,8 +136,8 @@ class ElasticQueries:
             "size": size,
         }
 
-        logger.info(f"🔍 Построен запрос для позиции: {position.title}")
-        logger.debug(f"🔍 Запрос: {query}")
+        # logger.info(f"🔍 Построен запрос для позиции: {position.title}")
+        # logger.debug(f"🔍 Запрос: {query}")
 
         return query
 
@@ -243,7 +243,7 @@ class ElasticQueries:
             "size": size,
         }
 
-        logger.info(f"🔍 Построен запрос для позиции: {position.title}")
-        logger.debug(f"🔍 Запрос: {query}")
+        # logger.info(f"🔍 Построен запрос для позиции: {position.title}")
+        # logger.debug(f"🔍 Запрос: {query}")
 
         return query

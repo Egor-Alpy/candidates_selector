@@ -27,7 +27,7 @@ class ElasticSelector:
             body = ElasticQueries.get_query_v6(
                 position=position
             )
-            logger.info(f'body: {body}')
+            # logger.info(f'body: {body}')
             candidates = await self.es_repo.make_query(index_name=index_name, body=body)
             # logger.info(f"candidates: {candidates}")
             return candidates

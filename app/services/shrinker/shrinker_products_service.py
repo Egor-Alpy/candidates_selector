@@ -52,14 +52,18 @@ class ShrinkerProducts:
             compatible_groups = self._get_compatible_attribute_groups(
                 pos_type, candidate_grouped_attrs
             )
+
+            # logger.info(f'ИЩЕМ МЭТЧ ДЛЯ {pos_attr} | compatible_groups: {compatible_groups}')
+
             for group_name, group_attrs in compatible_groups:
-                match_found = await self._find_attribute_match_in_group(
+                match_found = await self._find_attribute_match_in_groups(
                     pos_attr,
                     group_attrs,
                     result,
                     f"cross_type_match_{pos_type}_vs_{group_name}",
                     group_type=group_name
                 )
+
                 if match_found:
                     break
 
@@ -78,6 +82,8 @@ class ShrinkerProducts:
                 - len(result["unmatched_attributes"])
             )
             max_possible_points = result["points"] + remaining_attrs
+            # logger.info(f'len_pos: {len(position_attrs)} | res matches: {len(result["matched_attributes"])} | res unmatched: {len(result["unmatched_attributes"])}')
+            # logger.info(f'max_pos_points: {max_possible_points} | result[points]: {result["points"]} | remainintg_attrs: {remaining_attrs}')
 
             if max_possible_points < min_required_points:
                 # logger.warning(
@@ -94,12 +100,11 @@ class ShrinkerProducts:
         # Фильтрация по минимуму баллов
         if result["points"] < min_required_points:
             # logger.warning(
-            #     f"❌ Кандидат отклонен: {result['points']} < {min_required_points}"
+            #     f"❌ Кандидат отклонен: {result['points']} < {min_required_points} | result: {result}"
             # )
             return None
 
-        # logger.info(f"✅ Кандидат принят!")
-
+        # logger.info(f"✅ Кандидат принят! {result}")
 
         return result
 
@@ -345,7 +350,7 @@ class ShrinkerProducts:
             logger.error(f"Error determining value subtype for {value}: {e}")
             return "string"
 
-    async def _find_attribute_match_in_group(
+    async def _find_attribute_match_in_groups(
         self,
         pos_attr: Dict,
         candidate_attrs_group: List[Dict],
@@ -354,71 +359,75 @@ class ShrinkerProducts:
         group_type: str,
     ) -> bool:
         """Поиск совпадения атрибута в конкретной группе кандидатов"""
-        pos_type = pos_attr.get("type")
-        pos_name = pos_attr.get("name", "")
-        names_similarity_list = []
-        names_trigram_similarities = []
+        try:
+            pos_type = pos_attr.get("type")
+            pos_name = pos_attr.get("name", "")
+            names_similarity_list = []
+            names_trigram_similarities = []
+            candidate_attrs_group_with_matches_values = []
 
-        for cand_attr in candidate_attrs_group:
-            cand_name = cand_attr.get("name", "")
-            # Проверка совместимости по названию
-            names_similarity_list.append([pos_name, cand_name])
-            trigram_similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
-            names_trigram_similarities.append(trigram_similarity)
+            for cand_attr in candidate_attrs_group:
+                # Проверка совместимости по типу и значению
+                value_match = await self._check_value_compatibility(
+                    pos_attr,
+                    pos_type=pos_type,
+                    cand_parsed=cand_attr,
+                    cand_type=group_type,
+                )
+                if value_match:
+                    candidate_attrs_group_with_matches_values.append(cand_attr)
 
-        names_similarities = await self._check_names_similarity_batch(
-            names_similarity_list
-        )
+            for cand_attr in candidate_attrs_group_with_matches_values:
+                cand_name = cand_attr.get("name", "")
+                # Проверка совместимости по названию
+                names_similarity_list.append([pos_name, cand_name])
 
-        # Эффективный поиск максимума за один проход
-        max_score = names_similarities[0]
-        max_index = 0
+                trigram_similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
+                names_trigram_similarities.append(trigram_similarity)
 
-        for i in range(1, len(names_similarities)):
-            names_total_similarities_score = names_similarities[i] + names_trigram_similarities[i]
-            if names_total_similarities_score > max_score:
-                max_score = names_total_similarities_score
-                max_index = i
+            names_similarities = await self._check_names_similarity_batch(names_similarity_list)
 
-        # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
-        max_similarity_cand_attr = candidate_attrs_group[max_index]
+            # Эффективный поиск максимума за один проход
+            if not names_similarities:
+                return False
+            max_score = names_similarities[0]
+            max_index = 0
 
-        if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
+            for i in range(1, len(names_similarities)):
+                names_total_similarities_score = names_similarities[i] + names_trigram_similarities[i]
+                if names_total_similarities_score > max_score:
+                    max_score = names_total_similarities_score
+                    max_index = i
+
+            # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
+            max_similarity_cand_attr = candidate_attrs_group_with_matches_values[max_index]
+
+            if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
+                return False
+
+            if max_similarity_cand_attr:
+                result["matched_attributes"].append(
+                    {
+                        "position_attr_id": pos_attr.get("pg_id", None),
+                        "original_position_attr_name": pos_attr["original_name"],
+                        "original_position_attr_value": pos_attr["original_value"],
+                        "original_position_attr_unit": pos_attr["original_unit"],
+                        "original_product_attr_name": max_similarity_cand_attr["original_name"],
+                        "original_product_attr_value": max_similarity_cand_attr["original_value"],
+                        "name_similarity": max_score,
+                        "match_type": f"{pos_attr.get('type', 'unknown')} vs {max_similarity_cand_attr.get('type', 'unknown')}",
+                        "matching_strategy": match_type,
+                        "position_attr_type": pos_attr.get("type", "unknown"),
+                        "candidate_attr_type": max_similarity_cand_attr.get("type", "unknown"),
+                    }
+                )
+
+                return True
+
             return False
-
-
-        # Проверка совместимости по типу и значению
-        value_match = await self._check_value_compatibility(
-            pos_attr,
-            pos_type=pos_type,
-            cand_parsed=max_similarity_cand_attr,
-            cand_type=group_type,
-        )
-
-        if value_match:
-            result["matched_attributes"].append(
-                {
-                    "position_attr_id": pos_attr.get("pg_id", None),
-                    "original_position_attr_name": pos_attr["original_name"],
-                    "original_position_attr_value": pos_attr["original_value"],
-                    "original_position_attr_unit": pos_attr["original_unit"],
-                    "original_product_attr_name": max_similarity_cand_attr["original_name"],
-                    "original_product_attr_value": max_similarity_cand_attr["original_value"],
-                    "name_similarity": max_score,
-                    "match_type": f"{pos_attr.get('type', 'unknown')} vs {max_similarity_cand_attr.get('type', 'unknown')}",
-                    "matching_strategy": match_type,
-                    "position_attr_type": pos_attr.get("type", "unknown"),
-                    "candidate_attr_type": max_similarity_cand_attr.get("type", "unknown"),
-                }
-            )
-
-            # logger.critical(
-            #     f'max_score: {max_score} | cand_value: {max_similarity_cand_attr["value"]} - pos_value: {pos_attr["original_value"]},{pos_attr["original_unit"]} | cand_name: {max_similarity_cand_attr["name"]} - pos_name: {pos_name}'
-            # )
-
-            return True
-
-        return False
+        except Exception as e:
+            logger.error(f'{e}')
+            return False
 
     async def _check_names_similarity_batch(self, names_similarity_list):
         try:
@@ -602,7 +611,7 @@ class ShrinkerProducts:
             cand_value = str(cand_data.get("value", {}).get("value", ""))
 
             similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
-            # similarity = await self.vectorizer.compare_two_strings(pos_name, cand_name)
+
             return similarity >= settings.THRESHOLD_VALUE_MATCH
 
         except Exception as e:
