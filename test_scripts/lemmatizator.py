@@ -52,8 +52,6 @@ def handle_word(word, lang="ru"):
             stem_processing_time = time.time() - stem_processing_time_start
 
             return {
-                "lang": lang,
-                "word": word,
                 "lemma": lemma,
                 "stem": stem,
                 "lemma_processing_time": lemma_processing_time,
@@ -69,8 +67,6 @@ def handle_word(word, lang="ru"):
             stem_processing_time = time.time() - stem_processing_time_start
 
             return {
-                "lang": lang,
-                "word": word,
                 "lemma": lemma,
                 "stem": stem,
                 "lemma_processing_time": lemma_processing_time,
@@ -78,8 +74,6 @@ def handle_word(word, lang="ru"):
             }
         else:
             return {
-                "lang": lang,
-                "word": word,
                 "lemma": word,
                 "stem": word,
                 "lemma_processing_time": 0,
@@ -87,7 +81,12 @@ def handle_word(word, lang="ru"):
             }
     except Exception as e:
         print(f"Error while handling word: {word} | {e}")
-        return {"word": word, "error": str(e)}
+        return {
+            "lemma": word,
+            "stem": word,
+            "lemma_processing_time": 0,
+            "stem_processing_time": 0,
+        }
 
 
 def lemmatizate_and_stemm(text):
@@ -100,18 +99,26 @@ def lemmatizate_and_stemm(text):
 
     filtered_words = [w for w in words if w not in stop_words]
 
-    results = []
+    lemmas = []
+    stems = []
+    total_lemma_time = 0
+    total_stem_time = 0
+
     for word in filtered_words:
         word_lang = detect_language(word)
         handled = handle_word(word, lang=word_lang)
-        results.append(handled)
+        lemmas.append(handled["lemma"])
+        stems.append(handled["stem"])
+        total_lemma_time += handled["lemma_processing_time"]
+        total_stem_time += handled["stem_processing_time"]
 
     return {
-        "original": text,
-        "detected_lang": lang,
-        "words_total": len(words),
-        "words_filtered": len(filtered_words),
-        "processed_words": results,
+        "lang": lang,
+        "word": " ".join(filtered_words),
+        "lemma": " ".join(lemmas),
+        "stem": " ".join(stems),
+        "lemma_processing_time": total_lemma_time,
+        "stem_processing_time": total_stem_time,
     }
 
 
