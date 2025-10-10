@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Общие настройки
-    PROJECT_NAME: str = "Candidates Selector"
+    PROJECT_NAME: str = "Matcher"
     PROJECT_DESCRIPTION: str = "Сервис для отбора кандидатов мэтчинга"
     PROJECT_VERSION: str = "1.0.0"
 
