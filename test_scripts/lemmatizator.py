@@ -5,6 +5,15 @@ from nltk import SnowballStemmer
 from nltk.corpus import stopwords
 import re
 import string
+import nltk
+
+# Автоматическая загрузка стоп-слов при первом запуске
+try:
+    stopwords.words("russian")
+except LookupError:
+    print("Загрузка стоп-слов...")
+    nltk.download("stopwords", quiet=True)
+    print("✓ Стоп-слова загружены")
 
 print("Загрузка моделей...")
 nlp_en = spacy.load("en_core_web_sm")
