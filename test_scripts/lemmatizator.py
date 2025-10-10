@@ -2,14 +2,17 @@ import time
 import spacy
 import pymorphy3
 from nltk import SnowballStemmer
+from nltk.corpus import stopwords
 import re
+import string
 
-# Загрузка моделей
 print("Загрузка моделей...")
 nlp_en = spacy.load("en_core_web_sm")
 morph_ru = pymorphy3.MorphAnalyzer()
 stemmer_ru = SnowballStemmer("russian")
 stemmer_en = SnowballStemmer("english")
+stop_words_ru = set(stopwords.words("russian"))
+stop_words_en = set(stopwords.words("english"))
 print("✓ Модели загружены")
 
 
@@ -29,63 +32,50 @@ def detect_language(text):
     return "unknown"
 
 
+def tokenize(text):
+    punctuation = string.punctuation + '«»—–""' "„…"
+    text_clean = text.translate(str.maketrans("", "", punctuation))
+    return re.findall(r"\b\w+\b", text_clean.lower())
+
+
 def handle_word(word, lang="ru"):
     try:
-        ts = time.time()
-
         if lang == "ru":
-            lemma_processing_time_start = time.time()
-            lemma = morph_ru.parse(word)[0].normal_form,
-            lemma_processing_time = time.time() - lemma_processing_time_start
-
-
-            stem_processing_time_start = time.time()
-            stem = stemmer_ru.stem(word),
-            stem_processing_time = time.time() - stem_processing_time_start
-            return {
-                "lang": lang,
-                "lemma": lemma[0],
-                "lemma_processing_time": lemma_processing_time,
-                "stem": stem[0],
-                "stem_processing_time": stem_processing_time
-            }
+            lemma = morph_ru.parse(word)[0].normal_form
+            stem = stemmer_ru.stem(word)
+            return lemma
         elif lang == "en":
-            lemma_processing_time_start = time.time()
-            lemma = nlp_en(word)[0].lemma_,
-            lemma_processing_time = time.time() - lemma_processing_time_start
-
-
-            stem_processing_time_start = time.time()
-            stem = stemmer_en.stem(word),
-            stem_processing_time = time.time() - stem_processing_time_start
-            return {
-                "lang": lang,
-                "lemma": lemma[0],
-                "lemma_processing_time": lemma_processing_time,
-                "stem": stem[0],
-                "stem_processing_time": stem_processing_time
-            }
+            lemma = nlp_en(word)[0].lemma_
+            stem = stemmer_en.stem(word)
+            return lemma
         else:
-            return {
-                "lang": lang,
-                "lemma": word,
-                "lemma_processing_time": 0,
-                "stem": word,
-                "stem_processing_time": 0,
-            }
+            return word
     except Exception as e:
         print(f"Error while handling word: {word} | {e}")
-        return {"error": str(e), "word": word}  # ← ИСПРАВЛЕНО
+        return word
 
 
-def lemmatizate_and_stemm(user_word):
-    lang = detect_language(user_word)
-    handled_word = handle_word(user_word, lang=lang)
-    return handled_word
+def lemmatizate_and_stemm(text):
+    words = tokenize(text)
+    lang = detect_language(text)
+
+    stop_words = (
+        stop_words_ru if lang == "ru" else stop_words_en if lang == "en" else set()
+    )
+
+    filtered_words = [w for w in words if w not in stop_words]
+
+    lemmas = []
+    for word in filtered_words:
+        word_lang = detect_language(word)
+        lemma = handle_word(word, lang=word_lang)
+        lemmas.append(lemma)
+
+    return " ".join(lemmas)
 
 
 if __name__ == "__main__":
     while True:
-        user_word = input('input word to handel: ')
-        result = lemmatizate_and_stemm(user_word)
+        user_input = input("input text to handle: ")
+        result = lemmatizate_and_stemm(user_input)
         print(result)
