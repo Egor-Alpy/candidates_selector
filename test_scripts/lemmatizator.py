@@ -8,7 +8,8 @@ import string
 import nltk
 import os
 
-# Установка пути для NLTK данных ПЕРЕД любыми операциями
+import os
+nltk.data.path.append('/usr/local/share/nltk_data')  # Добавляем путь где данные установлены
 os.makedirs('/tmp/nltk_data', exist_ok=True)
 nltk.data.path.insert(0, '/tmp/nltk_data')
 
