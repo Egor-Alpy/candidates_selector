@@ -33,6 +33,8 @@ def detect_language(text):
 
 
 def tokenize(text):
+    text = text.replace("-", " ")
+
     punctuation = string.punctuation + '«»—–""' "„…"
     text_clean = text.translate(str.maketrans("", "", punctuation))
     return re.findall(r"\b\w+\b", text_clean.lower())
@@ -41,18 +43,51 @@ def tokenize(text):
 def handle_word(word, lang="ru"):
     try:
         if lang == "ru":
+            lemma_processing_time_start = time.time()
             lemma = morph_ru.parse(word)[0].normal_form
+            lemma_processing_time = time.time() - lemma_processing_time_start
+
+            stem_processing_time_start = time.time()
             stem = stemmer_ru.stem(word)
-            return lemma
+            stem_processing_time = time.time() - stem_processing_time_start
+
+            return {
+                "lang": lang,
+                "word": word,
+                "lemma": lemma,
+                "stem": stem,
+                "lemma_processing_time": lemma_processing_time,
+                "stem_processing_time": stem_processing_time,
+            }
         elif lang == "en":
+            lemma_processing_time_start = time.time()
             lemma = nlp_en(word)[0].lemma_
+            lemma_processing_time = time.time() - lemma_processing_time_start
+
+            stem_processing_time_start = time.time()
             stem = stemmer_en.stem(word)
-            return lemma
+            stem_processing_time = time.time() - stem_processing_time_start
+
+            return {
+                "lang": lang,
+                "word": word,
+                "lemma": lemma,
+                "stem": stem,
+                "lemma_processing_time": lemma_processing_time,
+                "stem_processing_time": stem_processing_time,
+            }
         else:
-            return word
+            return {
+                "lang": lang,
+                "word": word,
+                "lemma": word,
+                "stem": word,
+                "lemma_processing_time": 0,
+                "stem_processing_time": 0,
+            }
     except Exception as e:
         print(f"Error while handling word: {word} | {e}")
-        return word
+        return {"word": word, "error": str(e)}
 
 
 def lemmatizate_and_stemm(text):
@@ -65,13 +100,19 @@ def lemmatizate_and_stemm(text):
 
     filtered_words = [w for w in words if w not in stop_words]
 
-    lemmas = []
+    results = []
     for word in filtered_words:
         word_lang = detect_language(word)
-        lemma = handle_word(word, lang=word_lang)
-        lemmas.append(lemma)
+        handled = handle_word(word, lang=word_lang)
+        results.append(handled)
 
-    return " ".join(lemmas)
+    return {
+        "original": text,
+        "detected_lang": lang,
+        "words_total": len(words),
+        "words_filtered": len(filtered_words),
+        "processed_words": results,
+    }
 
 
 if __name__ == "__main__":
