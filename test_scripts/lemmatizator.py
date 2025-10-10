@@ -1,3 +1,4 @@
+import os
 import time
 import spacy
 import pymorphy3
@@ -6,6 +7,9 @@ from nltk.corpus import stopwords
 import re
 import string
 import nltk
+
+os.makedirs('/tmp/nltk_data', exist_ok=True)
+nltk.data.path.insert(0, '/tmp/nltk_data')
 
 # Автоматическая загрузка стоп-слов при первом запуске
 try:
