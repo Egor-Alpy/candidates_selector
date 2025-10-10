@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, compare
+from app.api.v1.endpoints import health, compare, lemmatiztion_and_stemming
 
 api_router = APIRouter(prefix='/v1', tags=['v1'])
 
-routers = [health.router, compare.router]
+routers = [health.router, compare.router, lemmatiztion_and_stemming.router]
 
 # Подключаем роутеры
 for router in routers:

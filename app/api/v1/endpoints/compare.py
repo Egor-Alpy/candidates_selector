@@ -5,7 +5,7 @@ from app.core.logger import get_logger
 from app.services.trigrammer import Trigrammer
 from app.services.vectorizer import SemanticMatcher
 
-router = APIRouter(prefix="/compare", tags=["Select Candidates"])
+router = APIRouter(prefix="/compare", tags=["Compare Strings"])
 logger = get_logger(name=__name__)
 
 
@@ -13,18 +13,14 @@ logger = get_logger(name=__name__)
 async def process_collection(
         string1: str,
         string2: str,
-        trigrammer: Trigrammer = Depends(get_service_trigrammer),
-        vectorizer: SemanticMatcher = Depends(get_service_vectorizer)
+        trigrammer: Trigrammer = Depends(get_service_trigrammer)
 ):
-    """Тестовый локальный эндпоинт для сравнения 2х строк по семантике и n-граммам ES"""
+    """Тестовый локальный эндпоинт для сравнения 2-х строк по n-граммам"""
     try:
         ngram_similarity = await trigrammer.compare_two_strings(string1, string2)
-        vector_similarity = await vectorizer.compare_two_strings(string1, string2)
 
         return {
-            "similarity": ngram_similarity + vector_similarity,
-            "ngram_similarity": ngram_similarity,
-            "vector_similarity": vector_similarity
+            "similarity": ngram_similarity,
         }
     except Exception as e:
         logger.error(f"Ошибка api-слоя: {e}")
