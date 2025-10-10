@@ -1,4 +1,3 @@
-import os
 import time
 import spacy
 import pymorphy3
@@ -7,25 +6,30 @@ from nltk.corpus import stopwords
 import re
 import string
 import nltk
+import os
 
+# Установка пути для NLTK данных ПЕРЕД любыми операциями
 os.makedirs('/tmp/nltk_data', exist_ok=True)
 nltk.data.path.insert(0, '/tmp/nltk_data')
 
-# Автоматическая загрузка стоп-слов при первом запуске
+print("Загрузка моделей...")
+
+# Загрузка стоп-слов с правильным путем
 try:
-    stopwords.words("russian")
+    stop_words_ru = set(stopwords.words("russian"))
+    stop_words_en = set(stopwords.words("english"))
+    print("✓ Стоп-слова уже загружены")
 except LookupError:
     print("Загрузка стоп-слов...")
-    nltk.download("stopwords", quiet=True)
+    nltk.download("stopwords", quiet=True, download_dir='/tmp/nltk_data')
+    stop_words_ru = set(stopwords.words("russian"))
+    stop_words_en = set(stopwords.words("english"))
     print("✓ Стоп-слова загружены")
 
-print("Загрузка моделей...")
 nlp_en = spacy.load("en_core_web_sm")
 morph_ru = pymorphy3.MorphAnalyzer()
 stemmer_ru = SnowballStemmer("russian")
 stemmer_en = SnowballStemmer("english")
-stop_words_ru = set(stopwords.words("russian"))
-stop_words_en = set(stopwords.words("english"))
 print("✓ Модели загружены")
 
 
