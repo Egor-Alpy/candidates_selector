@@ -14,7 +14,6 @@ services:
       SERVICE_LINK_ATTRS_STANDARDIZER: http://host.docker.internal:8000
       SERVICE_LINK_UNIT_STANDARDIZER: http://host.docker.internal:8001
       SERVICE_LINK_SEMANTIC_MATCHER: http://host.docker.internal:8081
-      NLTK_DATA: /tmp/nltk_data
       PG_POOL_SIZE: 20
       PG_MAX_OVERFLOW: 30
     restart: unless-stopped
