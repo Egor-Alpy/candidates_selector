@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 from app.core.logger import get_logger
 from app.core.settings import settings
 from app.services.attrs_standardizer import AttrsStandardizer
+from app.services.lemmatization_service import LemmatizationService
 from app.services.trigrammer import Trigrammer
 from app.services.unit_standardizer import UnitStandardizer
 from app.services.vectorizer import SemanticMatcher
@@ -18,6 +19,7 @@ class ShrinkerProducts:
         self.attrs_sorter = AttrsStandardizer()
         self.unit_normalizer = UnitStandardizer()
         self.trigrammer = Trigrammer()
+        self.lemmatizator = LemmatizationService()
 
     async def process_single_candidate(
         self,
@@ -145,6 +147,8 @@ class ShrinkerProducts:
             "unknown": [],
             "all": [],
         }
+        value_lemma = ''
+        value_stem = ''
 
         for attr in candidate_attrs:
             try:
@@ -161,6 +165,8 @@ class ShrinkerProducts:
                 # Определение единицы измерения в зависимости от типа
                 if attribute_type == "simple":
                     standardized_unit = attr.get("standardized_unit", "")
+                    value_lemma = attr.get("standardized_value_lemma", standardized_value)
+                    value_stem = attr.get("standardized_value_stem", standardized_value)
                 else:
                     # Для range/multiple пытаемся извлечь unit из первого элемента
                     if (
@@ -182,7 +188,9 @@ class ShrinkerProducts:
                     "original_value": attr.get("original_value", ""),
                     "name": standardized_name,
                     "type": attribute_type,
-                    "value": self._convert_to_attrs_sorter_format(standardized_value, standardized_unit, attribute_type)
+                    "value": self._convert_to_attrs_sorter_format(standardized_value, standardized_unit, attribute_type),
+                    "lemma": value_lemma,
+                    "stem": value_stem
                 }
 
                 # Определяем подтип для simple значений
@@ -607,12 +615,18 @@ class ShrinkerProducts:
     async def _compare_string_values(self, pos_data: Dict, cand_data: Dict) -> bool:
         """Сравнение строковых значений"""
         try:
-            pos_value = str(pos_data.get("value", {}).get("value", ""))
-            cand_value = str(cand_data.get("value", {}).get("value", ""))
+            # pos_value = str(pos_data.get("value", {}).get("value", ""))
+            # cand_value = str(cand_data.get("value", {}).get("value", ""))
+            #
+            # similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
+            pos_lemma = self.lemmatizator.lemmatize(str(pos_data.get("value", {}).get("value", "")))
+            cand_lemma = cand_data.get("lemma")
 
-            similarity = await self.trigrammer.compare_two_strings(pos_value, cand_value)
+            if pos_lemma == cand_lemma:
+                return True
+            return False
 
-            return similarity >= settings.THRESHOLD_VALUE_MATCH
+            # return similarity >= settings.THRESHOLD_VALUE_MATCH
 
         except Exception as e:
             logger.error(f"Ошибка сравнения строковых значений: {e}")

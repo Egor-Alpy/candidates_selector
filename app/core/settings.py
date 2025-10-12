@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Настройка подключения к ElasticSearch
     ES_HOST: str = "localhost"
     ES_PORT: int = 9200
-    ES_INDEX: str = "products_testik_v3"
+    ES_INDEX: str = "super_duper_index"
     ES_CANDIDATES_QTY: int = 2000
     ES_MAX_RETRIES: int = 3
 
