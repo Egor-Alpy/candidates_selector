@@ -6,6 +6,7 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
+    python -m spacy download en_core_web_sm && \
     rm -rf /root/.cache/pip
 
 COPY . .
