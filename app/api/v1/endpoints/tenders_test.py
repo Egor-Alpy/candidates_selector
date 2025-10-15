@@ -135,7 +135,7 @@ async def _finalize_results(
         # Создаем расширенный отчет
         # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
         # with open(report_filename, "w", encoding="utf-8") as f:
-        #     json.dump(report, f, ensure_ascii=False, indent=2)  # Todo: dev env only!
+        #     json.dump(report, f, ensure_ascii=False, indent=2)
         # logger.info(f"📄 Отчет сохранен: {report_filename}")
     except Exception as e:
         logger.error(e)

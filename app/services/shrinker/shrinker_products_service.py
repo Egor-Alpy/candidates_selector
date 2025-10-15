@@ -65,7 +65,6 @@ class ShrinkerProducts:
                 result=result
             )
 
-
             # for group_name, group_attrs in compatible_groups:
             #     match_found = await self._find_attribute_match_in_groups(
             #         pos_attr,
@@ -120,27 +119,22 @@ class ShrinkerProducts:
         return result
 
     async def _find_attribute_match_in_compitable_groups(
-        self,
-        pos_attr: Dict,
-        compatible_groups: List[Tuple],
-        result: Dict
+        self, pos_attr: Dict, compatible_groups: List[Tuple], result: Dict
     ) -> bool:
         """Поиск совпадения атрибута в конкретной группе кандидатов"""
         try:
             pos_type = pos_attr.get("type")
             pos_name = pos_attr.get("name", "")
-            names_similarity_list = []
-            names_trigram_similarities = []
-            candidate_attrs_group_with_matches_values = []
-            candidate_attrs_with_matches_values = {}
-            attrs_matches_counter = 0
-            logger.warning(f"compatible_groups: {compatible_groups}")
 
+            # Словарь для хранения кандидатов с совпадающими значениями по типам
+            candidate_attrs_with_value_matches = {}
+
+            # Проходим по всем совместимым группам
             for group_type, group_attrs in compatible_groups:
-                candidate_attrs_with_matches_values[group_type] = []
-                logger.warning(f"group_attrs: {group_attrs}")
+                candidate_attrs_with_value_matches[group_type] = []
+
                 for cand_attr in group_attrs:
-                    # Проверка совместимости по типу и значению
+                    # Проверка совместимости по значению
                     value_match = await self._check_value_compatibility(
                         pos_attr,
                         pos_type=pos_type,
@@ -148,81 +142,64 @@ class ShrinkerProducts:
                         cand_type=group_type,
                     )
                     if value_match:
-                        candidate_attrs_with_matches_values[group_type].append(cand_attr)  # тут мы должны добавлять в соответствующую группу по типу
-                        attrs_matches_counter += 1
+                        candidate_attrs_with_value_matches[group_type].append(cand_attr)
 
-            logger.warning(f"candidate_attrs_with_matches_values: {candidate_attrs_with_matches_values}")
-            logger.warning(f"attrs_matches_counter: {attrs_matches_counter}")
+            # Если нет совпадений по значениям - выходим
+            total_matches = sum(
+                len(attrs) for attrs in candidate_attrs_with_value_matches.values()
+            )
+            if total_matches == 0:
+                return False
 
-            # if attrs_matches_counter == 0:
-            #     if match_type == "string":
-            #         for cand_attr in candidate_attrs_group:
-            #             # Проверка совместимости по типу и значению
-            #             value_match = await self._check_value_compatibility(
-            #                 pos_attr,
-            #                 pos_type=pos_type,
-            #                 cand_parsed=cand_attr,
-            #                 cand_type=group_type,
-            #             )
-            #             if value_match:
-            #                 continue
-            #                 candidate_attrs_group_with_matches_values.append(cand_attr)
+            # Подготовка пар для батчевого сравнения названий
+            comparison_pairs = []
+            flat_candidates = []
 
-            names_similarity_dict = {}
-            for group_type, group_attrs in candidate_attrs_with_matches_values.items():
-                names_similarity_dict[group_type] = []
+            for group_type, group_attrs in candidate_attrs_with_value_matches.items():
                 for cand_attr in group_attrs:
                     cand_name = cand_attr.get("name", "")
-                    # Проверка совместимости по названию
-                    names_similarity_dict[group_type].append([pos_name, cand_name])
+                    comparison_pairs.append([pos_name, cand_name])
+                    flat_candidates.append(cand_attr)
 
-                    # trigram_similarity = await self.trigrammer.compare_two_strings(pos_name, cand_name)
-                    # names_trigram_similarities.append(trigram_similarity)
+            # Батчевое сравнение названий
+            name_similarities = await self._check_names_similarity_batch(
+                comparison_pairs
+            )
 
-            for group_type, similarities in names_similarity_dict.items():
-                names_similarities = await self._check_names_similarity_batch(names_similarity_dict[group_type])
-                logger.info(names_similarities)
-
-            # Эффективный поиск максимума за один проход
-            if not names_similarities:
+            if not name_similarities:
                 return False
-            max_score = names_similarities[0]
-            max_index = 0
 
-            for i in range(1, len(names_similarities)):
-                names_total_similarities_score = names_similarities[i] # + names_trigram_similarities[i]
-                if names_total_similarities_score > max_score:
-                    max_score = names_total_similarities_score
-                    max_index = i
+            # Поиск кандидата с максимальным скором
+            max_score = max(name_similarities)
+            max_index = name_similarities.index(max_score)
 
-            # ✅ ИСПРАВЛЕНИЕ: Получаем кандидата с максимальным скором
-            max_similarity_cand_attr = candidate_attrs_group_with_matches_values[max_index]
-
+            # Проверка порога
             if max_score < settings.THRESHOLD_ATTRIBUTE_MATCH:
                 return False
 
-            if max_similarity_cand_attr:
-                result["matched_attributes"].append(
-                    {
-                        "position_attr_id": pos_attr.get("pg_id", None),
-                        "original_position_attr_name": pos_attr["original_name"],
-                        "original_position_attr_value": pos_attr["original_value"],
-                        "original_position_attr_unit": pos_attr["original_unit"],
-                        "original_product_attr_name": max_similarity_cand_attr["original_name"],
-                        "original_product_attr_value": max_similarity_cand_attr["original_value"],
-                        "name_similarity": max_score,
-                        "value_similarity": 1,
-                        "position_attr_type": pos_attr.get("type", "unknown"),
-                        "candidate_attr_type": max_similarity_cand_attr.get("type", "unknown"),
-                    }
-                )
+            # Получаем лучшего кандидата
+            best_candidate = flat_candidates[max_index]
 
-                return True
+            # Добавляем в результаты
+            result["matched_attributes"].append(
+                {
+                    "position_attr_id": pos_attr.get("pg_id", None),
+                    "original_position_attr_name": pos_attr["original_name"],
+                    "original_position_attr_value": pos_attr["original_value"],
+                    "original_position_attr_unit": pos_attr["original_unit"],
+                    "original_product_attr_name": best_candidate["original_name"],
+                    "original_product_attr_value": best_candidate["original_value"],
+                    "name_similarity": max_score,
+                    "value_similarity": 1,
+                    "position_attr_type": pos_attr.get("type", "unknown"),
+                    "candidate_attr_type": best_candidate.get("type", "unknown"),
+                }
+            )
 
-            return False
+            return True
+
         except Exception as e:
-            logger.error(f'{e}')
-            exit()
+            logger.error(f"Error in _find_attribute_match_in_compitable_groups: {e}")
             return False
 
 
