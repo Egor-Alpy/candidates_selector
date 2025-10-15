@@ -114,6 +114,8 @@ class TenderPositionAttributesMatches(Base):
     position_attr_unit: Mapped[Optional[str]] = mapped_column(Text)
     product_attr_name: Mapped[Optional[str]] = mapped_column(Text)
     product_attr_value: Mapped[Optional[str]] = mapped_column(Text)
+    attr_name_match_score: Mapped[Optional[float]] = mapped_column(Float)
+    attr_value_match_score: Mapped[Optional[int]] = mapped_column(Integer)
 
 class TenderPositionAttributes(Base):
     __tablename__ = 'tenders_position_attributes'
