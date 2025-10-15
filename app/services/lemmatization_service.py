@@ -125,7 +125,6 @@ class LemmatizationService:
                 lemmas.append(lemma)
 
             result = " ".join(lemmas)
-            logger.info(f"Лемматизация: '{text}' -> '{result}'")
 
             return result
 
