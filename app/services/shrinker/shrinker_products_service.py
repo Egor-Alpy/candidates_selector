@@ -150,6 +150,8 @@ class ShrinkerProducts:
             )
             if total_matches == 0:
                 return False
+            elif total_matches == 1:
+                name_similarity = await ...
 
             # Подготовка пар для батчевого сравнения названий
             comparison_pairs = []
