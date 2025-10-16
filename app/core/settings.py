@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "1.0.0"
 
     # Настройка мэтчера
-    CANDIDATES_TRASHOLD_SCORE: float = 0.7  # процент смэтченных характеристик по достижению которого кандидат будет сохранен в бд
+    CANDIDATES_TRASHOLD_SCORE: float = 0.78  # процент смэтченных характеристик по достижению которого кандидат будет сохранен в бд
 
-    THRESHOLD_ATTRIBUTE_MATCH: float = 0.73  # Порог мэтчинга НАЗВАНИЙ характеристик
+    THRESHOLD_ATTRIBUTE_MATCH: float = 0.0  # Порог мэтчинга НАЗВАНИЙ характеристик
     THRESHOLD_VALUE_MATCH: float = 0.85  # Порог мэтчинга ЗНАЧЕНИЙ характеристик
 
     # Настройка логирования
