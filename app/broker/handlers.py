@@ -94,9 +94,7 @@ async def handle_tender_categorization(
 
 
 async def _finalize_results(
-    candidates: dict,
-    processed_candidates: List[Dict],
-    position: TenderPositions
+    candidates: dict, processed_candidates: List[Dict], position: TenderPositions
 ):
     """Финальная обработка результатов"""
     try:
@@ -106,12 +104,16 @@ async def _finalize_results(
         ]
         attributes_matches_data = []
         tender_matches_data = []
+
         for i, result in enumerate(processed_candidates):
             tender_position_id = position.id
             tender_position_max_points = len(position.attributes)
             tender_position_score = result.get("points")
-            tender_position_percentage_match_score = round(tender_position_score / tender_position_max_points * 100, 1)
-            product_mongo_id = result['candidate']['_source']['id']
+            tender_position_percentage_match_score = round(
+                tender_position_score / tender_position_max_points * 100, 1
+            )
+            product_mongo_id = result["candidate"]["_source"]["id"]
+
             # Данные для основного соответствия
             tender_match_data = {
                 "tender_position_id": tender_position_id,
@@ -121,19 +123,29 @@ async def _finalize_results(
                 "percentage_match_score": tender_position_percentage_match_score,
             }
             tender_matches_data.append(tender_match_data)
-            for matched_char in result['matched_attributes']:
+
+            # Данные для соответствий атрибутов
+            for matched_char in result["matched_attributes"]:
                 match_data = {
-                    'tender_id': position.tender_id,
-                    'tender_position_id': tender_position_id,
-                    'product_mongo_id': product_mongo_id,
-                    'position_attr_id': matched_char['position_attr_id'],
-                    'position_attr_name': matched_char['original_position_attr_name'],
-                    'position_attr_value': matched_char['original_position_attr_value'],
-                    'position_attr_unit': matched_char.get('original_position_attr_unit'),
-                    'product_attr_name': matched_char['original_product_attr_name'],
-                    'product_attr_value': str(matched_char['original_product_attr_value']),
+                    "tender_id": position.tender_id,
+                    "tender_position_id": tender_position_id,
+                    "product_mongo_id": product_mongo_id,
+                    "position_attr_id": matched_char["position_attr_id"],
+                    "position_attr_name": matched_char["original_position_attr_name"],
+                    "position_attr_value": matched_char["original_position_attr_value"],
+                    "position_attr_unit": matched_char.get(
+                        "original_position_attr_unit"
+                    ),
+                    "product_attr_name": matched_char["original_product_attr_name"],
+                    "product_attr_value": str(
+                        matched_char["original_product_attr_value"]
+                    ),
+                    # Добавляем скоры совпадений
+                    "attr_name_match_score": matched_char.get("name_similarity"),
+                    "attr_value_match_score": matched_char.get("value_similarity"),
                 }
                 attributes_matches_data.append(match_data)
+
         async for fresh_session in get_session():
             try:
                 fresh_pg_service = PostgresRepository(fresh_session)
@@ -154,11 +166,9 @@ async def _finalize_results(
                 await fresh_session.rollback()
                 raise
 
-            logger.info(f"[№{position_number}] ✅ Позиция '{position.title}' обработана! Подобрано {len(processed_candidates)} товаров.\n")
-        # Создаем расширенный отчет
-        # report_filename = f"shrinking_report_{position.id}_{int(time.time())}.json"
-        # with open(report_filename, "w", encoding="utf-8") as f:
-        #     json.dump(report, f, ensure_ascii=False, indent=2)  # Todo: dev env only!
-        # logger.info(f"📄 Отчет сохранен: {report_filename}")
+            logger.info(
+                f"[№{position_number}] ✅ Позиция '{position.title}' обработана! "
+                f"Подобрано {len(processed_candidates)} товаров.\n"
+            )
     except Exception as e:
         logger.error(e)
