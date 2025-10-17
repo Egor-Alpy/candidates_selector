@@ -18,9 +18,14 @@ logger = get_logger(name=__name__)
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info(f"🚀 Запуск {settings.PROJECT_NAME} сервиса...")
+    logger.info(f"⚡️ Режим: {settings.ENV_MODE.upper()}")
 
-    await broker.start()
-    logger.info("✅ RabbitMQ broker started")
+    if settings.is_production_mode:
+        await broker.start()
+        logger.info("✅ RabbitMQ consumer запущен!")
+    else:
+        logger.warning("⚠️  RabbitMQ consumer ОТКЛЮЧЕН!")
+        logger.warning("💡 Используйте /api/v1/tender_test для тестирования")
 
     yield
 

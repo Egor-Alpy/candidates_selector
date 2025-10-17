@@ -1,7 +1,28 @@
 from pydantic_settings import BaseSettings
+from enum import Enum
+
+
+class EnvironmentMode(str, Enum):
+    """Типы окружений"""
+    DEV = "DEV"
+    PROD = "PROD"
 
 
 class Settings(BaseSettings):
+    # Окружение
+    ENV_MODE: EnvironmentMode = EnvironmentMode.DEV
+
+    @property
+    def is_production_mode(self) -> bool:
+        """Проверка на режим разработки PROD"""
+        return self.ENV_MODE == EnvironmentMode.PROD
+
+    @property
+    def is_development_mode(self) -> bool:
+        """Проверка на режим разработки PROD"""
+        return self.ENV_MODE == EnvironmentMode.DEV
+
+
     # Общие настройки
     PROJECT_NAME: str = "Matcher"
     PROJECT_DESCRIPTION: str = "Сервис для отбора кандидатов мэтчинга"
