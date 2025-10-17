@@ -10,7 +10,7 @@ class EnvironmentMode(str, Enum):
 
 class Settings(BaseSettings):
     # Окружение
-    ENV_MODE: EnvironmentMode = EnvironmentMode.PROD
+    ENV_MODE: EnvironmentMode = EnvironmentMode.DEV
 
     @property
     def is_production_mode(self) -> bool:
@@ -101,7 +101,7 @@ class Settings(BaseSettings):
             f'{self.PG_HOST}:{self.PG_PORT}/{self.PG_DB_NAME}'
         )
     class Config:
-        env_file = "../.env"
+        env_file = "../.env.dev"
 
 
 settings = Settings()

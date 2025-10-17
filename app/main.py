@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
     logger.info(f"🚀 Запуск {settings.PROJECT_NAME} сервиса...")
     logger.info(f"⚡️ Режим: {settings.ENV_MODE.upper()}")
+    logger.info(f'📝 Уровень логирования: {settings.LOG_LEVEL}')
 
     if settings.is_production_mode:
         await broker.start()
