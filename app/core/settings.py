@@ -10,7 +10,7 @@ class EnvironmentMode(str, Enum):
 
 class Settings(BaseSettings):
     # Окружение
-    ENV_MODE: EnvironmentMode = EnvironmentMode.DEV
+    ENV_MODE: EnvironmentMode = EnvironmentMode.PROD
 
     @property
     def is_production_mode(self) -> bool:
