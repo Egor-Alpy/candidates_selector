@@ -49,7 +49,7 @@ class SemanticMatcher:
                         result = await response.json()
                         return result
                     else:
-                        logger.info(response.status)
+                        logger.error(f"status: {response.status} | payload: {payload}")
                         return []
 
             except Exception as e:

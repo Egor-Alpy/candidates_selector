@@ -112,6 +112,8 @@ class ShrinkerProducts:
             pos_type = pos_attr.get("type")
             pos_name = pos_attr.get("name", "")
 
+            logger.debug(f"pos_type: {pos_type} | pos_name: {pos_name  }")
+
             # Словарь для хранения кандидатов с совпадающими значениями по типам
             candidate_attrs_with_value_matches = {}
 
@@ -306,12 +308,14 @@ class ShrinkerProducts:
                 standardized_name = attr.get("standardized_name")
                 if not standardized_name:
                     standardized_name = attr.get("original_name", None)
+
                 standardized_value = attr.get("standardized_value")
                 if not standardized_value:
                     standardized_value = attr.get("original_value", None)
+
                 attribute_type = attr.get("attribute_type", None)
                 if attribute_type is None:
-                    attribute_type = "unknown" # ToDo: заметки по поводу несмэтченных хар-к были сделаны в tenders workplace
+                    attribute_type = "unknown"
 
                 # Определение единицы измерения в зависимости от типа
                 if attribute_type == "simple":
@@ -320,16 +324,9 @@ class ShrinkerProducts:
                     value_stem = attr.get("standardized_value_stem", standardized_value)
                 else:
                     # Для range/multiple пытаемся извлечь unit из первого элемента
-                    if (
-                        isinstance(standardized_value, list)
-                        and len(standardized_value) > 0
-                    ):
+                    if isinstance(standardized_value, list) and len(standardized_value) > 0:
                         first_item = standardized_value[0]
-                        standardized_unit = (
-                            first_item.get("unit")
-                            if isinstance(first_item, dict)
-                            else None
-                        )
+                        standardized_unit = first_item.get("unit") if isinstance(first_item, dict) else None
                     else:
                         standardized_unit = attr.get("standardized_unit")
 
@@ -346,9 +343,7 @@ class ShrinkerProducts:
 
                 # Определяем подтип для simple значений
                 if attribute_type == "simple":
-                    value_subtype = self._determine_value_subtype(
-                        standardized_value
-                    )
+                    value_subtype = self._determine_value_subtype(standardized_value)
                     final_type = value_subtype
                     parsed_structure['type'] = final_type
                 else:
@@ -361,24 +356,14 @@ class ShrinkerProducts:
 
                     if unit and isinstance(value, (int, float)):
                         try:
-                            normalized_result = (
-                                await self.unit_normalizer.normalize_unit(
-                                    str(value), unit
-                                )
-                            )
+                            normalized_result = (await self.unit_normalizer.normalize_unit(str(value), unit))
 
                             if normalized_result.get("success", False):
                                 # Обновляем данные нормализованными значениями
-                                parsed_structure["value"]["value"] = (
-                                    normalized_result.get("base_value", value)
-                                )
-                                parsed_structure["value"]["unit"] = (
-                                    normalized_result.get("base_unit", unit)
-                                )
+                                parsed_structure["value"]["value"] = normalized_result.get("base_value", value)
+                                parsed_structure["value"]["unit"] = normalized_result.get("base_unit", unit)
                             else:
-                                # logger.warning(
-                                #     f"⚠️ Unit normalization failed for {value} {unit}"
-                                # )
+                                # logger.warning(f"⚠️ Unit normalization failed for {attr}")
                                 pass
 
                         except Exception as e:
@@ -398,6 +383,11 @@ class ShrinkerProducts:
 
             except Exception as e:
                 logger.error(f"Ошибка конвертации атрибута кандидата: {attr} | с ошибкой: {e}")
+
+        # for group, attrs in grouped_attrs.items():
+        #     logger.info(f"\ngroup: {group} | attrs: {attrs}")
+        #
+        # logger.info(f"grouped_attrs: {grouped_attrs}")
 
         return grouped_attrs
 
@@ -477,22 +467,8 @@ class ShrinkerProducts:
 
                 # Проверка на булевы значения в текстовом виде
                 boolean_values = {
-                    "да",
-                    "нет",
                     "true",
-                    "false",
-                    "yes",
-                    "no",
-                    "есть",
-                    "отсутствует",
-                    "имеется",
-                    "не имеется",
-                    "1",
-                    "0",
-                    "вкл",
-                    "выкл",
-                    "включено",
-                    "выключено",
+                    "false"
                 }
                 if value.lower().strip() in boolean_values:
                     return "boolean"
@@ -544,33 +520,26 @@ class ShrinkerProducts:
 
             # Boolean кросс-типовое сравнение - также сравниваем названия
             elif pos_type == "boolean" and cand_type in ["string", "multiple"]:
-                return await self._compare_boolean_with_other_types(
-                    pos_parsed, cand_parsed
-                )
-
-            elif pos_type in ["string", "multiple"] and cand_type == "boolean":
-                return await self._compare_boolean_with_other_types(
-                    cand_parsed, pos_parsed
-                )
+                return await self._compare_boolean_with_other_types(pos_parsed, cand_parsed)
 
             # Numeric значения
             elif pos_type == "numeric" and cand_type == "numeric":
                 return await self._compare_numeric_values(pos_parsed, cand_parsed)
 
-            # String значения
-            elif pos_type == "string" and cand_type == "string":
-                return await self._compare_string_values(pos_parsed, cand_parsed)
-
-            # Диапазоны
-            elif pos_type == "range" and cand_type == "range":
-                return await self._compare_ranges(pos_parsed, cand_parsed)
-
             # Numeric ↔ Range
             elif pos_type == "numeric" and cand_type == "range":
                 return await self._value_in_range(pos_parsed, cand_parsed)
 
+            # Диапазоны
             elif pos_type == "range" and cand_type == "numeric":
                 return await self._value_in_range(cand_parsed, pos_parsed)
+
+            elif pos_type == "range" and cand_type == "range":
+                return await self._compare_ranges(pos_parsed, cand_parsed)
+
+            # String значения
+            elif pos_type == "string" and cand_type == "string":
+                return await self._compare_string_values(pos_parsed, cand_parsed)
 
             # Multiple значения
             elif pos_type == "multiple" or cand_type == "multiple":
